@@ -3,10 +3,22 @@ import cors from "cors";
 import { spawn } from "child_process";
 import * as dotenv from "dotenv";
 
+import swaggerUi from 'swagger-ui-express';
+import fs from 'fs';
+import path from 'path';
+import { generateSwaggerDocsJsonFIle } from './swagger';
+
 dotenv.config();
 const app = express();
 
+generateSwaggerDocsJsonFIle().then(() => {
 
+    const swaggerFilePath = path.join(__dirname, 'swagger.json');
+
+    // Read the Swagger JSON file
+    const swaggerDocument = JSON.parse(fs.readFileSync(swaggerFilePath, 'utf-8'));
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+});
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
@@ -15,6 +27,9 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
 
 // Autoryzacja użytkownika (JWT)
 app.post("/login", (req, res) => {
+    // #swagger.tags = ['Auth']
+    // #swagger.description = 'Endpoint do logowania użytkownika.'
+
     const { username, password } = req.body;
     if (username === "admin" && password === "password") {
         console.log("User logged in:");
@@ -28,6 +43,12 @@ app.get("/stream", (_req: express.Request, res: express.Response) => {
     res.writeHead(200, {
         "Content-Type": "video/mp4"
     });
+
+    if (!fs.existsSync("/videos/video.mp4")) {
+        console.error("File not found");
+        res.status(404).send("File not found");
+        return;
+    }
 
     const ffmpeg = spawn("ffmpeg", [
         "-re",
