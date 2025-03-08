@@ -6,11 +6,12 @@ import * as dotenv from "dotenv";
 dotenv.config();
 const app = express();
 
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
 
 // Autoryzacja użytkownika (JWT)
 app.post("/login", (req, res) => {
@@ -45,10 +46,10 @@ app.get("/stream", (_req: express.Request, res: express.Response) => {
 });
 
 app.get("/test", (req, res) => {
-    res.send("Test endpoint");
+    res.send("Test endpoint success");
 });
 
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log('Server is running on http://0.0.0.0:3000');
+    console.log('Server is running on http://0.0.0.0:' + PORT);
 });

@@ -16,10 +16,11 @@
     "typescript": "^5.3.3"
   },
   "scripts": {
+    "prod": "bun run dist/server.js",
     "dev": "bun run src/server.ts",
     "build": "tsc",
-    "watch": "tsc -w",
-    "start": "bun run build && bun run dist/server.js"
+    "watch": "bun --hot /src/server.ts",
+    "start": "bun run build && bun run prod"
   },
   "peerDependencies": {
     "typescript": "^5.7.3"
