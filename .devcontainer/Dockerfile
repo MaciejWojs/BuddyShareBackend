@@ -4,6 +4,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/base:ubuntu
 ENV DEBIAN_FRONTEND=noninteractive 
 
 RUN set -ex && \
+    chmod +x /etc/bash.bashrc && \
     apt-get update && \
     apt-get install -y --no-install-recommends nala && \
     nala install -y --no-install-recommends curl apt-transport-https ca-certificates && \
@@ -13,6 +14,7 @@ RUN set -ex && \
     # Install main packages and configure Python
     nala update && \
     curl -fsSL https://bun.sh/install | bash && \
+    mv ~/.bun/bin/* /usr/bin/ && \
     # Clean up
     apt-get clean && \
     apt-get autoremove -y && \
