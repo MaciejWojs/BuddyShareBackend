@@ -13,7 +13,9 @@
                 "workbench.colorTheme": "Default Dark Modern",
                 "git.autofetch": true,
                 "git.autofetchPeriod": 60,
-                "editor.formatOnSave": true
+                "editor.formatOnSave": true,
+                "typescript.suggest.paths": false,
+                "javascript.suggest.paths": false 
             },
             "extensions": [
                 "MS-CEINTL.vscode-language-pack-pl",
@@ -24,6 +26,10 @@
                 "oven.bun-vscode",
                 "yzhang.markdown-all-in-one",
                 "mhutchie.git-graph",
+                "christian-kohler.path-intellisense",
+                "dbaeumer.vscode-eslint",
+                "mikestead.dotenv",
+                "steoates.autoimport"
             ]
         }
     },
