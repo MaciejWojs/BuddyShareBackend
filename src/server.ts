@@ -67,7 +67,7 @@ app.get("/stream", (_req: express.Request, res: express.Response) => {
 });
 
 app.get("/test", (req, res) => {
-    res.send("Test endpoint success");
+    res.send("Test endpoint success!!!");
 });
 
 
