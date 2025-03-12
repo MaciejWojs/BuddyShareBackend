@@ -2,11 +2,11 @@ import express from "express";
 import cors from "cors";
 import { spawn } from "child_process";
 import * as dotenv from "dotenv";
-
 import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
 import path from 'path';
 import { generateSwaggerDocsJsonFIle } from './swagger';
+
 
 dotenv.config();
 const app = express();
@@ -30,11 +30,35 @@ app.post("/login", (req, res) => {
     // #swagger.tags = ['Auth']
     // #swagger.description = 'Endpoint do logowania użytkownika.'
 
-    const { username, password } = req.body;
-    if (username === "admin" && password === "password") {
+    const haslo = process.env.TESTING_PASS;
+
+
+    const { username, reqHASH } = req.body;
+
+    
+    const SALT = process.env.SALT
+    const PEPPER = process.env.PEPPER
+    if(!SALT || !PEPPER){
+        console.error("Salt or Pepper not found");
+        return res.status(500).send("Internal server error");
+    }
+    const PASS = SALT + haslo + PEPPER
+    // const HASH = require('crypto').createHash('sha256',PASS).digest('hex');
+    const HASH = require('crypto').createHash('sha256').update(PASS, 'utf8').digest('hex');
+    console.log(HASH)
+
+    // console.log(PASS)
+    // console.log(reqHASH)
+
+    // console.log("Username: " + username);
+    // console.log("reqHASH: " + reqHASH);
+
+    if (username === "admin" && HASH === reqHASH) {
         console.log("User logged in:");
+        return res.json({success: true});
     } else {
-        res.status(401).send("Unauthorized");
+        console.log("Login Failed:");
+        return res.status(401).json({success: false});
     }
 });
 

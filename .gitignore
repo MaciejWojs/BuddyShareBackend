@@ -176,3 +176,4 @@ dist
 
 #CUSTOM
 *.mp4
+src/*.json
