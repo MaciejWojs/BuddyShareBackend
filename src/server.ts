@@ -1,11 +1,17 @@
-import express from "express";
-import cors from "cors";
+// Node.js built-in modules
 import { spawn } from "child_process";
-import * as dotenv from "dotenv";
-import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
 import path from 'path';
+
+// Third-party dependencies
+import cors from "cors";
+import * as dotenv from "dotenv";
+import express, { RequestHandler } from "express";
+import swaggerUi from 'swagger-ui-express';
+
+// Local imports
 import { generateSwaggerDocsJsonFIle } from './swagger';
+import { ReasonPhrases, StatusCodes } from "http-status-codes";
 
 
 dotenv.config();
@@ -17,6 +23,7 @@ generateSwaggerDocsJsonFIle().then(() => {
 
     // Read the Swagger JSON file
     const swaggerDocument = JSON.parse(fs.readFileSync(swaggerFilePath, 'utf-8'));
+    // app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 });
 app.use(cors());
@@ -26,26 +33,27 @@ app.use(express.static("public"));
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
 
 // Autoryzacja użytkownika (JWT)
-app.post("/login", (req, res) => {
+app.post("/login", (_req: express.Request, res: express.Response): void => {
     // #swagger.tags = ['Auth']
     // #swagger.description = 'Endpoint do logowania użytkownika.'
 
     const haslo = process.env.TESTING_PASS;
 
 
-    const { username, reqHASH } = req.body;
+    const { username, reqHASH }: { username: string, reqHASH: string } = _req.body;
 
-    
+
     const SALT = process.env.SALT
     const PEPPER = process.env.PEPPER
-    if(!SALT || !PEPPER){
+    if (!SALT || !PEPPER) {
         console.error("Salt or Pepper not found");
-        return res.status(500).send("Internal server error");
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+        return;
     }
     const PASS = SALT + haslo + PEPPER
     // const HASH = require('crypto').createHash('sha256',PASS).digest('hex');
     const HASH = require('crypto').createHash('sha256').update(PASS, 'utf8').digest('hex');
-    console.log(HASH)
+    // console.log(HASH)
 
     // console.log(PASS)
     // console.log(reqHASH)
@@ -54,11 +62,11 @@ app.post("/login", (req, res) => {
     // console.log("reqHASH: " + reqHASH);
 
     if (username === "admin" && HASH === reqHASH) {
-        console.log("User logged in:");
-        return res.json({success: true});
+        console.log("User logged in:", username);
+        res.json({ success: true, message: ReasonPhrases.OK });
     } else {
         console.log("Login Failed:");
-        return res.status(401).json({success: false});
+        res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: ReasonPhrases.UNAUTHORIZED });
     }
 });
 
