@@ -1,0 +1,133 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  SUBSCRIBER
+  STREAMER
+  MODERATOR
+}
+
+enum StreamStatus {
+  ACTIVE
+  ENDED
+}
+
+enum StreamQuality {
+  HD720
+  HD1080
+}
+
+enum NotificationType {
+  STREAM_START
+  SYSTEM
+}
+
+enum ModerationActionType {
+  BLOCK
+  DELETE_MESSAGE
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  email          String    @unique @db.VarChar(255)
+  passwordHash   String    @db.VarChar(255)
+  displayName    String    @unique @db.VarChar(50)
+  profilePicture String?   @db.VarChar(255)
+  role           Role      @default(USER)
+  createdAt      DateTime  @default(now())
+  lastLogin      DateTime?
+
+  // Relations
+  streams          Stream[]
+  chatMessages     ChatMessage[]
+  notifications    Notification[]
+  moderatedActions ModerationAction[] @relation("ModeratorActions")
+  subscriptions    Subscription[]     @relation("Subscriber")
+  subscribedTo     Subscription[]     @relation("Streamer")
+  ModerationAction ModerationAction[]
+}
+
+model Stream {
+  id          Int           @id @default(autoincrement())
+  title       String        @db.VarChar(100)
+  description String?
+  startTime   DateTime      @default(now())
+  endTime     DateTime?
+  status      StreamStatus  @default(ACTIVE)
+  quality     StreamQuality
+  viewerCount Int           @default(0)
+
+  // Relations
+  streamer         User               @relation(fields: [streamerId], references: [id])
+  streamerId       Int
+  chatMessages     ChatMessage[]
+  ModerationAction ModerationAction[]
+
+  @@index([status, startTime])
+}
+
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  message   String
+  timestamp DateTime @default(now())
+  isDeleted Boolean  @default(false)
+
+  // Relations
+  stream   Stream @relation(fields: [streamId], references: [id])
+  streamId Int
+  user     User   @relation(fields: [userId], references: [id])
+  userId   Int
+
+  @@index([timestamp, isDeleted])
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  type      NotificationType
+  content   String
+  createdAt DateTime         @default(now())
+  isRead    Boolean          @default(false)
+
+  // Relations
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+}
+
+model ModerationAction {
+  id         Int                  @id @default(autoincrement())
+  actionType ModerationActionType
+  reason     String?
+  timestamp  DateTime             @default(now())
+
+  // Relations
+  moderator    User    @relation("ModeratorActions", fields: [moderatorId], references: [id])
+  moderatorId  Int
+  targetUser   User    @relation(fields: [targetUserId], references: [id])
+  targetUserId Int
+  stream       Stream? @relation(fields: [streamId], references: [id])
+  streamId     Int?
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  // Relations
+  subscriber   User @relation("Subscriber", fields: [subscriberId], references: [id])
+  subscriberId Int
+  streamer     User @relation("Streamer", fields: [streamerId], references: [id])
+  streamerId   Int
+}
