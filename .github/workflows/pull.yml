@@ -1,0 +1,21 @@
+name: Pull reqests tests
+
+on: pull_request
+
+jobs:
+  PR_tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: install dependecies
+        run: bun install
+
+      - name: run tests
+        run: bun test
