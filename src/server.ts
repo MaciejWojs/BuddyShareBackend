@@ -1,5 +1,5 @@
 // Node.js built-in modules
-import { spawn } from "child_process";
+import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -73,7 +73,7 @@ function authenticate(req: express.Request, res: express.Response, next: express
             res.sendStatus(StatusCodes.FORBIDDEN);
             return;
         }
-        // req.user = user;
+        req.user = user;
         next();
     });
 }
@@ -96,10 +96,10 @@ app.post("/login", (_req: express.Request, res: express.Response): void => {
             ...loginField,
             passwordHash: reqHASH
         }
-    }).then((user) => {
-        if (user) {
-            const prismaUser = { username: user.displayName, role: user.role };
-            const token = jwt.sign(prismaUser, JWT_ACCESS_SECRET, { expiresIn: "1h" });
+    }).then((prismaUser) => {
+        if (prismaUser) {
+            const { passwordHash, ...user } = prismaUser;
+            const token = jwt.sign(user, JWT_ACCESS_SECRET, { expiresIn: "1h" });
             console.log("User logged in:", user.displayName + " role: " + user.role + " email: " + user.email);
             res.cookie('JWT', token, { signed: true, httpOnly: true, secure: true })
                 .json({ success: true, message: ReasonPhrases.OK });
@@ -189,10 +189,17 @@ app.post("/register", async (_req: express.Request, res: express.Response) => {
 app.get("/auth-test", authenticate, (req: express.Request, res: express.Response): void => {
     // #swagger.tags = ['Auth']
     // #swagger.description = 'Endpoint do testowania autoryzacji użytkownika.'
-    res.json({ success: true, message: ReasonPhrases.OK });
+    res.json({ success: true, message: ReasonPhrases.OK , user: req.user});
 
 });
 
+
+app.get("/me", authenticate, async (req: express.Request, res: express.Response) => {
+    // #swagger.tags = ['Auth']
+    // #swagger.description = 'Endpoint do pobierania informacji o zalogowanym użytkowniku.'
+
+    res.json(req.user);
+});
 
 // Strumieniowanie HLS
 app.get("/stream", (_req: express.Request, res: express.Response) => {
