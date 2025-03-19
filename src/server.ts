@@ -55,24 +55,30 @@ if (!JWT_ACCESS_SECRET) {
 }
 
 function authenticate(req: express.Request, res: express.Response, next: express.NextFunction): void {
+
+    console.log("Authenticating user...");
     if (!JWT_ACCESS_SECRET) {
+        console.error("JWT_ACCESS_SECRET is not defined");
         res.json({ success: false, message: "JWT_ACCESS" });
         return;
     }
-
+    
     const token = req.signedCookies['JWT'];
     // console.log("Cookie: " + token);
-
+    
     if (!token) {
+        console.error("No token provided");
         res.json({ success: false, message: "JWT" });
         return;
     }
-
+    
     jwt.verify(token, JWT_ACCESS_SECRET, (err: jwt.VerifyErrors | null, user: any) => {
         if (err) {
+            console.error("Failed to authenticate user:", err);
             res.sendStatus(StatusCodes.FORBIDDEN);
             return;
         }
+        console.log("User authenticated:", user.displayName);
         req.user = user;
         next();
     });
@@ -197,8 +203,20 @@ app.get("/auth-test", authenticate, (req: express.Request, res: express.Response
 app.get("/me", authenticate, async (req: express.Request, res: express.Response) => {
     // #swagger.tags = ['Auth']
     // #swagger.description = 'Endpoint do pobierania informacji o zalogowanym użytkowniku.'
-
+    console.log("User info:", req.user);
     res.json(req.user);
+    
+});
+
+app.get("/logout",  (req: express.Request, res: express.Response) => {
+    // #swagger.tags = ['Auth']
+    // #swagger.description = 'Endpoint do wylogowania użytkownika.'
+    console.log("User logged out:");
+
+    // res.cookie('JWT', "xDXDXD", { signed: true, httpOnly: true, secure: true}).json({ success: true, message: ReasonPhrases.OK });
+
+    res.clearCookie('JWT').json({ success: true, message: ReasonPhrases.OK });
+    res.end();
 });
 
 // Strumieniowanie HLS
