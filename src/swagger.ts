@@ -7,9 +7,18 @@ const host = "localhost:" + (process.env.PORT || 5000);
 const docs = {
     info: {
         title: 'My API',
-        description: 'Description'
+        description: 'API Documentation',
+        version: '1.0.0'
     },
-    host: host,
+    host: `localhost:${process.env.PORT || 5000}`,
+    schemes: ['http'],
+    securityDefinitions: {
+        cookieAuth: {
+            type: 'apiKey',
+            in: 'cookie',
+            name: 'JWT'
+        }
+    }
 };
 
 const outputFile = './swagger.json';
