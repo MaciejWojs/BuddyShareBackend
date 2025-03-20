@@ -68,7 +68,7 @@ function authenticate(req: express.Request, res: express.Response, next: express
     
     if (!token) {
         console.error("No token provided");
-        res.json({ success: false, message: "JWT" });
+        res.sendStatus(StatusCodes.BAD_REQUEST).json({ success: false, message: "JWT" });
         return;
     }
     
@@ -204,7 +204,7 @@ app.get("/me", authenticate, async (req: express.Request, res: express.Response)
     // #swagger.tags = ['Auth']
     // #swagger.description = 'Endpoint do pobierania informacji o zalogowanym użytkowniku.'
     console.log("User info:", req.user);
-    res.json(req.user);
+    res.json(req.user).status(StatusCodes.OK);
     
 });
 
