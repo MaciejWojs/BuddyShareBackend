@@ -30,9 +30,9 @@ const enSpec = createSwaggerSpec('en');
 const plSpec = createSwaggerSpec('pl');
 
 // Zapisanie plików JSON do użycia w Swagger UI
-// const outputDir = path.join(__dirname, '../');
-// fs.write(path.join(outputDir, 'swagger-en.json'), JSON.stringify(enSpec, null, 2));
-// fs.write(path.join(outputDir, 'swagger-pl.json'), JSON.stringify(plSpec, null, 2));
+const outputDir = path.join(__dirname, '../');
+fs.write(path.join(outputDir, 'swagger-en.json'), JSON.stringify(enSpec, null, 2));
+fs.write(path.join(outputDir, 'swagger-pl.json'), JSON.stringify(plSpec, null, 2));
 
 // Middleware do obsługi przełączania języka
 app.use('/swagger-language', (req, res) => {

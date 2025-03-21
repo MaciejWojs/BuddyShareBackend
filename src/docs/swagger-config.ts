@@ -37,7 +37,7 @@ export function createSwaggerSpec(language: 'en' | 'pl' = 'en'): object {
   const options = {
     definition: swaggerDefinition,
     // Ścieżki do plików z adnotacjami JSDoc
-    apis: ['./src/routes/*.ts', './src/controllers/*.ts']
+    apis: ['./src/routes/*.{ts,js}', './src/controllers/*.{ts,js}']
   };
   
   // Wygeneruj specyfikację OpenAPI

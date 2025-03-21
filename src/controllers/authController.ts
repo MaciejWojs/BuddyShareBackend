@@ -23,35 +23,50 @@ const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || '';
  * - 401 Unauthorized if credentials are invalid
  * - 500 Internal Server Error if the database operation reports an error
  */
-export const login = (req: Request, res: Response): void => {
+export const login = async (req: Request, res: Response) => {
     console.log("Logging in user...");
-    const { username, reqHASH } = req.body;
-    if (!username || !reqHASH) {
-        res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: ReasonPhrases.BAD_REQUEST });
+    const { username, passwordHash } = req.body;
+    if (!username || !passwordHash) {
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Missing required fields: username and passwordHash'
+        });
         return;
     }
 
     const email = EmailValidator.validate(username) ? username : null;
     const loginField = email ? { email } : { displayName: username };
 
-    prisma.user.findFirst({
-        where: {
-            ...loginField,
-            passwordHash: reqHASH
-        }
-    }).then((prismaUser) => {
+    try {
+        const prismaUser = await prisma.user.findFirst({
+            where: {
+                ...loginField,
+                passwordHash: passwordHash
+            }
+        });
+
         if (prismaUser) {
             const { passwordHash, ...user } = prismaUser;
             const token = jwt.sign(user, JWT_ACCESS_SECRET, { expiresIn: "1h" });
             res.cookie('JWT', token, { signed: true, httpOnly: true, secure: true })
-                .json({ success: true, message: ReasonPhrases.OK });
+                .status(StatusCodes.OK)
+                .json({
+                    success: true,
+                    message: 'Authentication successful'
+                });
         } else {
-            res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: ReasonPhrases.UNAUTHORIZED });
+            res.status(StatusCodes.UNAUTHORIZED).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
         }
-    }).catch((error) => {
+    } catch (error) {
         console.error("Failed to login user:", error);
-        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: ReasonPhrases.INTERNAL_SERVER_ERROR });
-    });
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: 'Internal server error during authentication'
+        });
+    }
 };
 
 /**
@@ -79,14 +94,20 @@ export const register = async (req: Request, res: Response) => {
     // console.log("Password " + password);
 
     if (!username || !email || !password) {
-        res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Missing required fields: username, email, and password'
+        });
         return;
     }
 
     const isCorrectEmail = EmailValidator.validate(email);
     if (!isCorrectEmail) {
         console.log("Invalid email");
-        res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Invalid email format'
+        });
         return;
     }
     console.log("Generating hash for password...");
@@ -95,7 +116,10 @@ export const register = async (req: Request, res: Response) => {
 
     if (!HASH) {
         console.log("Failed to generate hash");
-        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: 'Failed to process password'
+        });
         return;
     }
     console.log("Hash generated successfully");
@@ -115,13 +139,21 @@ export const register = async (req: Request, res: Response) => {
 
         if (exist_displayName) {
             console.log(`User with this username ${username} already exists`);
-            res.status(StatusCodes.CONFLICT).json({ success: false, cause: "username" });
+            res.status(StatusCodes.CONFLICT).json({
+                success: false,
+                cause: "username",
+                message: 'Username already exists'
+            });
             return;
         }
 
         if (exist_email) {
             console.log(`User with this email ${email} already exists`);
-            res.status(StatusCodes.CONFLICT).json({ success: false, cause: "email" });
+            res.status(StatusCodes.CONFLICT).json({
+                success: false,
+                cause: "email",
+                message: 'Email already exists'
+            });
             return;
         }
 
@@ -135,10 +167,16 @@ export const register = async (req: Request, res: Response) => {
         });
         console.log("User created successfully:", username);
         console.log("User role", usr.role);
-        res.json({ success: true, message: ReasonPhrases.OK });
+        res.status(StatusCodes.CREATED).json({
+            success: true,
+            message: 'User successfully registered'
+        });
     } catch (error) {
         console.error("Failed to create user:", error);
-        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: 'Internal server error during registration'
+        });
     }
 };
 
@@ -154,7 +192,7 @@ export const register = async (req: Request, res: Response) => {
  * @returns {Promise<void>} - Doesn't return a value, but sends a JSON response with user data
  */
 export const getMe = async (req: Request, res: Response) => {
-    res.json(req.user).status(StatusCodes.OK);
+    res.status(StatusCodes.OK).json(req.user);
 };
 
 /**
@@ -166,8 +204,12 @@ export const getMe = async (req: Request, res: Response) => {
  * @returns {void} - Doesn't return a value, but clears the JWT cookie and sends a success response
  */
 export const logout = (req: Request, res: Response) => {
-    res.clearCookie('JWT').json({ success: true, message: ReasonPhrases.OK });
-    res.end();
+    res.clearCookie('JWT')
+        .status(StatusCodes.OK)
+        .json({
+            success: true,
+            message: 'User logged out successfully'
+        });
 };
 
 /**
@@ -181,5 +223,9 @@ export const logout = (req: Request, res: Response) => {
  * @returns {void} - Doesn't return a value, but sends a JSON response with user data for testing
  */
 export const test = (req: Request, res: Response) => {
-    res.json({ success: true, message: ReasonPhrases.OK, user: req.user });
+    res.status(StatusCodes.OK).json({ 
+        success: true, 
+        message: 'Authentication test successful', 
+        user: req.user 
+    });
 };
