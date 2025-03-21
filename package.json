@@ -21,7 +21,7 @@
   "scripts": {
     "swagger": "bun run src/swagger.ts",
     "prod": "bun run dist/server.js",
-    "dev": "bun run swagger && bun run src/server.ts",
+    "dev": "bun run src/server.ts",
     "build": "tsc",
     "watch": "bun --hot /src/server.ts",
     "start": "bun run build && bun run prod",
