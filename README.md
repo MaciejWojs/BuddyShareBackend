@@ -1,13 +1,21 @@
 # Table
 - [Table](#table)
-- [back](#back)
+- [Back](#back)
+  - [O projekcie](#o-projekcie)
   - [Wymagania wstępne](#wymagania-wstępne)
   - [Instalacja zależności](#instalacja-zależności)
+  - [Konfiguracja](#konfiguracja)
   - [Uruchamianie aplikacji](#uruchamianie-aplikacji)
     - [Uruchamianie w trybie deweloperskim](#uruchamianie-w-trybie-deweloperskim)
     - [Uruchamianie w Dockerze (tryb produkcyjny)](#uruchamianie-w-dockerze-tryb-produkcyjny)
+  - [Testowanie](#testowanie)
+  - [Struktura projektu](#struktura-projektu)
 
-# back
+# Back
+
+## O projekcie
+
+Buddy-Share to backend aplikacji służącej do udostępniania i streamingu plików wideo. Aplikacja została zbudowana w oparciu o Bun i umożliwia szybkie wdrażanie zarówno w środowisku deweloperskim, jak i produkcyjnym przy użyciu Dockera.
 
 ## Wymagania wstępne
 
@@ -22,7 +30,33 @@ Aby zainstalować wszystkie wymagane zależności, uruchom poniższe polecenie w
 bun install
 ```
 
+## Konfiguracja
+
+Aplikacja korzysta z następujących zmiennych środowiskowych, które można skonfigurować w pliku `.env`:
+
+```
+SALT=jakis_sekret              # Sól używana do haszowania haseł użytkowników
+PEPPER=jakis_sekret            # Dodatkowe zabezpieczenie przy haszowaniu haseł
+TESTING_PASS=jakis_sekret      # Hasło używane do celów testowych
+
+FRONT_PORT=3000                # Port na którym działa frontend aplikacji
+PORT=5000                      # Port na którym działa backend aplikacji
+
+JWT_ACCESS_SECRET=jakis_sekret # Klucz do dostępowych JWT
+JWT_REFRESH_SECRET=jakis_sekret # Klucz do odświeżających JWT
+COOKIE_SECRET=jakis_sekret     # Klucz do szyfrowania plików cookie
+DATABASE_URL="string do podłączenia z bazą danych"
+
+```
+
+
 ## Uruchamianie aplikacji
+
+### Migracja bazy danych 
+
+```bash
+bunx prisma db push
+```
 
 ### Uruchamianie w trybie deweloperskim
 
@@ -51,3 +85,65 @@ Aby uruchomić aplikację w kontenerze Docker w trybie produkcyjnym, wykonaj pon
 gdzie:
  - PATH_1 - ścieżka lokalna na komputerze zawierająca film z nazwą `video.mp4`. Upewnij się, że ścieżka jest poprawna i dostępna dla kontenera Docker.
  - PORT - port, na którym ma działać aplikacja, aby można było uzyskać do niej dostęp z poziomu np. przeglądarki na komputerze lokalnym. Upewnij się, że port nie jest zajęty przez inne aplikacje.
+
+## Testowanie
+
+Aby uruchomić testy, użyj następującego polecenia:
+
+```bash
+bun test
+```
+
+Dla testów z pokryciem kodu:
+
+```bash
+bun test --coverage
+```
+
+## Struktura projektu
+
+```
+.
+├── src/                # Główny kod źródłowy aplikacji
+│   ├── controllers/    # Kontrolery obsługujące żądania HTTP
+│   ├── middleware/     # Middleware aplikacji
+│   ├── docs/           # Konfiguracja swagger
+│   ├── routes/         # Definicje tras API
+│   └── utils/          # Narzędzia pomocnicze
+├── tests/              # Testy aplikacji
+├── Dockerfile          # Konfiguracja budowania obrazu Docker
+├── package.json        # Konfiguracja projektu i zależności
+├── tsconfig.json       # Konfiguracja TypeScript
+└── README.md           # Dokumentacja projektu
+```
+
+## Testowanie
+
+Aby uruchomić testy, użyj następującego polecenia:
+
+```bash
+bun test
+```
+
+Dla testów z pokryciem kodu:
+
+```bash
+bun test --coverage
+```
+
+## Struktura projektu
+
+```
+.
+├── src/                # Główny kod źródłowy aplikacji
+│   ├── controllers/    # Kontrolery obsługujące żądania HTTP
+│   ├── middleware/     # Middleware aplikacji
+│   ├── docs/           # Konfiguracja swagger
+│   ├── routes/         # Definicje tras API
+│   └── utils/          # Narzędzia pomocnicze
+├── tests/              # Testy aplikacji
+├── Dockerfile          # Konfiguracja budowania obrazu Docker
+├── package.json        # Konfiguracja projektu i zależności
+├── tsconfig.json       # Konfiguracja TypeScript
+└── README.md           # Dokumentacja projektu
+```
