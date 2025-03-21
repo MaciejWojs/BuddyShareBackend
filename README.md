@@ -52,6 +52,12 @@ DATABASE_URL="string do podłączenia z bazą danych"
 
 ## Uruchamianie aplikacji
 
+### Migracja bazy danych 
+
+```bash
+bunx prisma db push
+```
+
 ### Uruchamianie w trybie deweloperskim
 
 Aby uruchomić aplikację w trybie deweloperskim, użyj poniższego polecenia:
@@ -79,6 +85,37 @@ Aby uruchomić aplikację w kontenerze Docker w trybie produkcyjnym, wykonaj pon
 gdzie:
  - PATH_1 - ścieżka lokalna na komputerze zawierająca film z nazwą `video.mp4`. Upewnij się, że ścieżka jest poprawna i dostępna dla kontenera Docker.
  - PORT - port, na którym ma działać aplikacja, aby można było uzyskać do niej dostęp z poziomu np. przeglądarki na komputerze lokalnym. Upewnij się, że port nie jest zajęty przez inne aplikacje.
+
+## Testowanie
+
+Aby uruchomić testy, użyj następującego polecenia:
+
+```bash
+bun test
+```
+
+Dla testów z pokryciem kodu:
+
+```bash
+bun test --coverage
+```
+
+## Struktura projektu
+
+```
+.
+├── src/                # Główny kod źródłowy aplikacji
+│   ├── controllers/    # Kontrolery obsługujące żądania HTTP
+│   ├── middleware/     # Middleware aplikacji
+│   ├── docs/           # Konfiguracja swagger
+│   ├── routes/         # Definicje tras API
+│   └── utils/          # Narzędzia pomocnicze
+├── tests/              # Testy aplikacji
+├── Dockerfile          # Konfiguracja budowania obrazu Docker
+├── package.json        # Konfiguracja projektu i zależności
+├── tsconfig.json       # Konfiguracja TypeScript
+└── README.md           # Dokumentacja projektu
+```
 
 ## Testowanie
 
