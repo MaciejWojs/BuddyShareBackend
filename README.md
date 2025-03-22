@@ -6,10 +6,13 @@
   - [Instalacja zależności](#instalacja-zależności)
   - [Konfiguracja](#konfiguracja)
   - [Uruchamianie aplikacji](#uruchamianie-aplikacji)
+    - [Migracja bazy danych](#migracja-bazy-danych)
     - [Uruchamianie w trybie deweloperskim](#uruchamianie-w-trybie-deweloperskim)
     - [Uruchamianie w Dockerze (tryb produkcyjny)](#uruchamianie-w-dockerze-tryb-produkcyjny)
   - [Testowanie](#testowanie)
   - [Struktura projektu](#struktura-projektu)
+  - [Testowanie](#testowanie-1)
+  - [Struktura projektu](#struktura-projektu-1)
 
 # Back
 
@@ -79,7 +82,7 @@ Aby uruchomić aplikację w kontenerze Docker w trybie produkcyjnym, wykonaj pon
 2. Uruchom kontener Docker:
 
     ```bash
-    docker run -v PATH_1:/videos -p PORT:3000 buddy-share-back:latest
+    docker run -v PATH_1:/videos -p PORT:3000 --env-file .env buddy-share-back:latest
     ```
 
 gdzie:
