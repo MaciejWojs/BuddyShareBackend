@@ -110,7 +110,7 @@ describe('Authentication Middleware', () => {
         }
 
         // THEN: Status FORBIDDEN (403)
-        expect(sendStatusMock).toBeCalledWith(StatusCodes.FORBIDDEN);
+        expect(sendStatusMock).toBeCalledWith(StatusCodes.UNAUTHORIZED);
         expect(next).not.toBeCalled();
     });
 

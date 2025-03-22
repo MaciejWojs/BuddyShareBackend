@@ -2,78 +2,59 @@ export const mediaPathsEN = {
   '/media': {
     get: {
       tags: ['Media'],
-      summary: 'Get all media',
+      summary: 'Get all streams',
+      description: 'Returns a list of all available streams',
       responses: {
         '200': {
-          description: 'Media list retrieved successfully',
+          description: 'List of streams',
           content: {
             'application/json': {
               schema: {
-                type: 'array',
-                items: {
-                  $ref: '#/components/schemas/Media'
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Get all streams' }
                 }
               }
             }
           }
-        },
-        '500': {
-          description: 'Server error'
         }
       }
     },
     post: {
       tags: ['Media'],
-      summary: 'Create new media resource',
+      summary: 'Create a new stream',
+      description: 'Creates a new streaming session',
       security: [{ cookieAuth: [] }],
       requestBody: {
+        required: true,
         content: {
           'application/json': {
-            schema: {
-              $ref: '#/components/schemas/MediaInput'
-            }
+            schema: { $ref: '#/components/schemas/StreamRequest' }
           }
         }
       },
       responses: {
         '201': {
-          description: 'Media created successfully'
-        },
-        '401': {
-          description: 'Unauthorized'
-        },
-        '500': {
-          description: 'Server error'
-        }
-      }
-    }
-  },
-  '/media/upload': {
-    post: {
-      tags: ['Media'],
-      summary: 'Upload media file',
-      security: [{ cookieAuth: [] }],
-      requestBody: {
-        content: {
-          'multipart/form-data': {
-            schema: {
-              type: 'object',
-              properties: {
-                file: {
-                  type: 'string',
-                  format: 'binary'
+          description: 'Stream created successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Stream created' },
+                  data: { $ref: '#/components/schemas/Stream' }
                 }
               }
             }
           }
-        }
-      },
-      responses: {
-        '200': {
-          description: 'File uploaded successfully'
         },
         '401': {
-          description: 'Unauthorized'
+          description: 'Not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     }
@@ -81,12 +62,14 @@ export const mediaPathsEN = {
   '/media/{id}': {
     get: {
       tags: ['Media'],
-      summary: 'Get media by ID',
+      summary: 'Get stream by ID',
+      description: 'Returns a specific stream by its ID',
       parameters: [
         {
           name: 'id',
           in: 'path',
           required: true,
+          description: 'ID of the stream to retrieve',
           schema: {
             type: 'string'
           }
@@ -94,67 +77,96 @@ export const mediaPathsEN = {
       ],
       responses: {
         '200': {
-          description: 'Media found',
+          description: 'Stream data',
           content: {
             'application/json': {
               schema: {
-                $ref: '#/components/schemas/Media'
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Get stream with ID: 123' }
+                }
               }
             }
           }
         },
         '404': {
-          description: 'Media not found'
+          description: 'Stream not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     },
     put: {
       tags: ['Media'],
-      summary: 'Update media',
+      summary: 'Update a stream',
+      description: 'Updates an existing stream',
       security: [{ cookieAuth: [] }],
       parameters: [
         {
           name: 'id',
           in: 'path',
           required: true,
+          description: 'ID of the stream to update',
           schema: {
             type: 'string'
           }
         }
       ],
       requestBody: {
+        required: true,
         content: {
           'application/json': {
-            schema: {
-              $ref: '#/components/schemas/MediaInput'
-            }
+            schema: { $ref: '#/components/schemas/StreamRequest' }
           }
         }
       },
       responses: {
         '200': {
-          description: 'Media updated successfully'
+          description: 'Stream updated successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Update stream with ID: 123' },
+                  data: { $ref: '#/components/schemas/Stream' }
+                }
+              }
+            }
+          }
         },
         '401': {
-          description: 'Unauthorized'
+          description: 'Not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         },
         '404': {
-          description: 'Media not found'
-        },
-        '500': {
-          description: 'Server error'
+          description: 'Stream not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     },
     delete: {
       tags: ['Media'],
-      summary: 'Delete media',
+      summary: 'Delete a stream',
+      description: 'Deletes an existing stream',
       security: [{ cookieAuth: [] }],
       parameters: [
         {
           name: 'id',
           in: 'path',
           required: true,
+          description: 'ID of the stream to delete',
           schema: {
             type: 'string'
           }
@@ -162,16 +174,33 @@ export const mediaPathsEN = {
       ],
       responses: {
         '200': {
-          description: 'Media deleted successfully'
+          description: 'Stream deleted successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Delete stream with ID: 123' }
+                }
+              }
+            }
+          }
         },
         '401': {
-          description: 'Unauthorized'
+          description: 'Not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         },
         '404': {
-          description: 'Media not found'
-        },
-        '500': {
-          description: 'Server error'
+          description: 'Stream not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     }
@@ -182,21 +211,59 @@ export const mediaPathsPL = {
   '/media': {
     get: {
       tags: ['Media'],
-      summary: 'Pobierz wszystkie media',
-      responses: {        '200': {          description: 'Lista mediów pobrana pomyślnie',          content: {            'application/json': {              schema: {                type: 'array',                items: {                  $ref: '#/components/schemas/Media'                }              }            }          }        },        '500': {          description: 'Błąd serwera'        }      }    },    post: {      tags: ['Media'],      summary: 'Utwórz nowy zasób medialny',      security: [{ cookieAuth: [] }],      requestBody: {        content: {          'application/json': {            schema: {              $ref: '#/components/schemas/MediaInput'            }          }        }      },      responses: {        '201': {          description: 'Media utworzone pomyślnie'        },        '401': {          description: 'Brak autoryzacji'        },        '500': {          description: 'Błąd serwera'        }      }    }  },  '/media/upload': {    post: {      tags: ['Media'],      summary: 'Wgraj plik multimedialny',      security: [{ cookieAuth: [] }],      requestBody: {        content: {          'multipart/form-data': {            schema: {              type: 'object',              properties: {                file: {                  type: 'string',
-                  format: 'binary'
+      summary: 'Pobierz wszystkie transmisje',
+      description: 'Zwraca listę wszystkich dostępnych transmisji',
+      responses: {
+        '200': {
+          description: 'Lista transmisji',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Pobierz wszystkie transmisje' }
                 }
               }
             }
           }
         }
+      }
+    },
+    post: {
+      tags: ['Media'],
+      summary: 'Utwórz nową transmisję',
+      description: 'Tworzy nową sesję transmisji',
+      security: [{ cookieAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/StreamRequest' }
+          }
+        }
       },
       responses: {
-        '200': {
-          description: 'Plik wgrano pomyślnie'
+        '201': {
+          description: 'Transmisja utworzona pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Transmisja utworzona' },
+                  data: { $ref: '#/components/schemas/Stream' }
+                }
+              }
+            }
+          }
         },
         '401': {
-          description: 'Brak autoryzacji'
+          description: 'Brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     }
@@ -204,12 +271,14 @@ export const mediaPathsPL = {
   '/media/{id}': {
     get: {
       tags: ['Media'],
-      summary: 'Pobierz media po ID',
+      summary: 'Pobierz transmisję po ID',
+      description: 'Zwraca konkretną transmisję na podstawie jej ID',
       parameters: [
         {
           name: 'id',
           in: 'path',
           required: true,
+          description: 'ID transmisji do pobrania',
           schema: {
             type: 'string'
           }
@@ -217,67 +286,96 @@ export const mediaPathsPL = {
       ],
       responses: {
         '200': {
-          description: 'Media znalezione',
+          description: 'Dane transmisji',
           content: {
             'application/json': {
               schema: {
-                $ref: '#/components/schemas/Media'
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Pobierz transmisję z ID: 123' }
+                }
               }
             }
           }
         },
         '404': {
-          description: 'Media nie znalezione'
+          description: 'Nie znaleziono transmisji',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     },
     put: {
       tags: ['Media'],
-      summary: 'Aktualizuj media',
+      summary: 'Aktualizuj transmisję',
+      description: 'Aktualizuje istniejącą transmisję',
       security: [{ cookieAuth: [] }],
       parameters: [
         {
           name: 'id',
           in: 'path',
           required: true,
+          description: 'ID transmisji do aktualizacji',
           schema: {
             type: 'string'
           }
         }
       ],
       requestBody: {
+        required: true,
         content: {
           'application/json': {
-            schema: {
-              $ref: '#/components/schemas/MediaInput'
-            }
+            schema: { $ref: '#/components/schemas/StreamRequest' }
           }
         }
       },
       responses: {
         '200': {
-          description: 'Media zaktualizowane pomyślnie'
+          description: 'Transmisja zaktualizowana pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Aktualizuj transmisję z ID: 123' },
+                  data: { $ref: '#/components/schemas/Stream' }
+                }
+              }
+            }
+          }
         },
         '401': {
-          description: 'Brak autoryzacji'
+          description: 'Brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         },
         '404': {
-          description: 'Media nie znalezione'
-        },
-        '500': {
-          description: 'Błąd serwera'
+          description: 'Nie znaleziono transmisji',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     },
     delete: {
       tags: ['Media'],
-      summary: 'Usuń media',
+      summary: 'Usuń transmisję',
+      description: 'Usuwa istniejącą transmisję',
       security: [{ cookieAuth: [] }],
       parameters: [
         {
           name: 'id',
           in: 'path',
           required: true,
+          description: 'ID transmisji do usunięcia',
           schema: {
             type: 'string'
           }
@@ -285,16 +383,33 @@ export const mediaPathsPL = {
       ],
       responses: {
         '200': {
-          description: 'Media usunięte pomyślnie'
+          description: 'Transmisja usunięta pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: { type: 'string', example: 'Usuń transmisję z ID: 123' }
+                }
+              }
+            }
+          }
         },
         '401': {
-          description: 'Brak autoryzacji'
+          description: 'Brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         },
         '404': {
-          description: 'Media nie znalezione'
-        },
-        '500': {
-          description: 'Błąd serwera'
+          description: 'Nie znaleziono transmisji',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     }

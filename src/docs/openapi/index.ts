@@ -1,6 +1,7 @@
 import { components } from './components/schemas';
 import { authPathsEN, authPathsPL } from './paths/auth/';
 import { mediaPathsEN, mediaPathsPL } from './paths/media/index';
+import { usersPathsEN, usersPathsPL } from './paths/users/index';
 
 
 /**
@@ -35,7 +36,8 @@ export function createOpenAPISpec(language: 'en' | 'pl' = 'en') {
     },
     paths: {
       ...(isEnglish ? authPathsEN : authPathsPL),
-      ...(isEnglish ? mediaPathsEN : mediaPathsPL)
+      ...(isEnglish ? mediaPathsEN : mediaPathsPL),
+      ...(isEnglish ? usersPathsEN : usersPathsPL)
     },
     components: {
       schemas: components,

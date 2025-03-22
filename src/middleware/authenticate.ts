@@ -22,6 +22,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
     }
     
     const token = req.signedCookies['JWT'];
+    console.log("Authenticating user with token:", token);
     
     if (!token) {
         console.error("No token provided");
@@ -32,7 +33,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
     jwt.verify(token, JWT_ACCESS_SECRET, (err: jwt.VerifyErrors | null, user: any) => {
         if (err) {
             console.error("Failed to authenticate user:", err);
-            res.sendStatus(StatusCodes.FORBIDDEN);
+            res.sendStatus(StatusCodes.UNAUTHORIZED);
             return;
         }
         console.log("User authenticated:", user.displayName);
