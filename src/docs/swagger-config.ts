@@ -2,6 +2,7 @@ import swaggerJSDoc from 'swagger-jsdoc';
 import { components } from './openapi/components/schemas';
 import { authPathsEN, authPathsPL } from './openapi/paths/auth/index';
 import { mediaPathsEN, mediaPathsPL } from './openapi/paths/media/index';
+import { usersPathsEN, usersPathsPL } from './openapi/paths/users/index';
 
 export function createSwaggerSpec(language: 'en' | 'pl' = 'en'): object {
   const isEnglish = language === 'en';
@@ -37,7 +38,7 @@ export function createSwaggerSpec(language: 'en' | 'pl' = 'en'): object {
   const options = {
     definition: swaggerDefinition,
     // Ścieżki do plików z adnotacjami JSDoc
-    apis: ['./src/routes/*.ts', './src/controllers/*.ts']
+    apis: ['./src/routes/*.{ts,js}', './src/controllers/*.{ts,js}']
   };
   
   // Wygeneruj specyfikację OpenAPI
@@ -46,7 +47,8 @@ export function createSwaggerSpec(language: 'en' | 'pl' = 'en'): object {
   // Dodaj ręcznie definicje ścieżek z naszych plików
   swaggerSpec.paths = {
     ...(isEnglish ? authPathsEN : authPathsPL),
-    ...(isEnglish ? mediaPathsEN : mediaPathsPL)
+    ...(isEnglish ? mediaPathsEN : mediaPathsPL),
+    ...(isEnglish ? usersPathsEN : usersPathsPL)
   };
   
   return swaggerSpec;

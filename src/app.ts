@@ -8,6 +8,7 @@ import { createSwaggerSpec } from './docs/swagger-config';
 
 import authRoutes from './routes/authRoutes';
 import streamRoutes from './routes/streamRoutes';
+import userRoutes from './routes/usersRoutes';
 
 const app = express();
 const FRONT_PORT = process.env.FRONT_PORT ? parseInt(process.env.FRONT_PORT) : 5000;
@@ -15,7 +16,8 @@ const secretKey = process.env.COOKIE_SECRET || '';
 
 // Konfiguracja CORS
 const corsOptions = {
-    origin: 'http://localhost:' + FRONT_PORT,
+    origin: 'http://localhost:*',
+    // + FRONT_PORT,
     optionsSuccessStatus: 200,
     credentials: true
 };
@@ -30,9 +32,9 @@ const enSpec = createSwaggerSpec('en');
 const plSpec = createSwaggerSpec('pl');
 
 // Zapisanie plików JSON do użycia w Swagger UI
-// const outputDir = path.join(__dirname, '../');
-// fs.write(path.join(outputDir, 'swagger-en.json'), JSON.stringify(enSpec, null, 2));
-// fs.write(path.join(outputDir, 'swagger-pl.json'), JSON.stringify(plSpec, null, 2));
+const outputDir = path.join(__dirname, '../');
+fs.write(path.join(outputDir, 'swagger-en.json'), JSON.stringify(enSpec, null, 2));
+fs.write(path.join(outputDir, 'swagger-pl.json'), JSON.stringify(plSpec, null, 2));
 
 // Middleware do obsługi przełączania języka
 app.use('/swagger-language', (req, res) => {
@@ -91,5 +93,6 @@ app.get('/api-docs', (req, res) => {
 // Routery,
 app.use('/auth', authRoutes);
 app.use('/media', streamRoutes);
+app.use('/users', userRoutes);
 
 export default app;
