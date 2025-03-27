@@ -82,6 +82,34 @@ export const usersPathsEN = {
         }
       }
     }
+  },
+  '/users/getAll': {
+    get: {
+      tags: ['Users'],
+      summary: 'Get all users',
+      description: 'Fetches a list of all users in the system',
+      responses: {
+        '200': {
+          description: 'List of users',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/User' }
+              }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -156,6 +184,34 @@ export const usersPathsPL = {
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/getAll': {
+    get: {
+      tags: ['Użytkownicy'],
+      summary: 'Pobierz wszystkich użytkowników',
+      description: 'Pobiera listę wszystkich użytkowników w systemie',
+      responses: {
+        '200': {
+          description: 'Lista użytkowników',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/User' }
+              }
             }
           }
         },

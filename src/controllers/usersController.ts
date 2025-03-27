@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, User } from '@prisma/client';
 import * as EmailValidator from 'email-validator';
 import jwt from 'jsonwebtoken';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { getPasswordHash } from '../utils/hash';
+
+
 
 const prisma = new PrismaClient();
 
@@ -52,3 +54,36 @@ export const exists = async (req: Request, res: Response) => {
         });
    }
 };
+
+/**
+ * Retrieves all users from the database, excluding their password hashes.
+ * @param req Express request object
+ * @param res Express response object
+ */
+export const getAllUsers = async (req: Request, res: Response) => {
+    try {
+        const prismaUsers =  await prisma.user.findMany();
+        
+        // Remove passwordHash from each user
+        if (!prismaUsers) {
+            res.status(StatusCodes.NOT_FOUND).json({
+                success: true,
+                message: `${ReasonPhrases.NOT_FOUND}`
+            });
+            return;
+        }
+
+        const users = prismaUsers.map((prismaUser: User) => {
+            const { passwordHash, ...user } = prismaUser;
+            return user;
+        });
+        
+        res.status(StatusCodes.OK).json(users);
+    } catch (error: any) {
+        console.error(`Error fetching users: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: 'Error fetching users'
+        });
+    }
+}

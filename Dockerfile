@@ -6,6 +6,8 @@ COPY . .
 # Install dependencies
 RUN bun install
 
+RUN bunx prisma generate
+
 # Build the app
 RUN bun run build
 
