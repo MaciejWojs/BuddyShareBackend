@@ -4,26 +4,26 @@ export const components = {
         properties: {
             id: {
                 type: 'integer',
-                description: 'Unikatowy identyfikator użytkownika'
+                description: 'Unique user identifier'
             },
             displayName: {
                 type: 'string',
-                description: 'Nazwa wyświetlana użytkownika'
+                description: 'User display name'
             },
             email: {
                 type: 'string',
                 format: 'email',
-                description: 'Adres email użytkownika'
+                description: 'User email address'
             },
             role: {
                 type: 'string',
                 enum: ['USER', 'SUBSCRIBER', 'STREAMER', 'MODERATOR'],
-                description: 'Rola użytkownika w systemie'
+                description: 'User role in the system'
             },
             lastLogin: {
                 type: 'string',
                 format: 'date-time',
-                description: 'Data ostatniego logowania'
+                description: 'Last login date'
             }
         }
     },
@@ -32,39 +32,39 @@ export const components = {
         properties: {
             id: {
                 type: 'integer',
-                description: 'Unikatowy identyfikator streamu'
+                description: 'Unique stream identifier'
             },
             title: {
                 type: 'string',
-                description: 'Tytuł streamu'
+                description: 'Stream title'
             },
             description: {
                 type: 'string',
-                description: 'Opis streamu'
+                description: 'Stream description'
             },
             startTime: {
                 type: 'string',
                 format: 'date-time',
-                description: 'Czas rozpoczęcia streamu'
+                description: 'Stream start time'
             },
             endTime: {
                 type: 'string',
                 format: 'date-time',
-                description: 'Czas zakończenia streamu'
+                description: 'Stream end time'
             },
             status: {
                 type: 'string',
                 enum: ['ACTIVE', 'ENDED'],
-                description: 'Status streamu'
+                description: 'Stream status'
             },
             quality: {
                 type: 'string',
                 enum: ['HD720', 'HD1080'],
-                description: 'Jakość streamu'
+                description: 'Stream quality'
             },
             viewerCount: {
                 type: 'integer',
-                description: 'Liczba oglądających'
+                description: 'Number of viewers'
             }
         }
     },
@@ -86,11 +86,11 @@ export const components = {
         properties: {
             username: {
                 type: 'string',
-                description: 'Nazwa użytkownika lub adres email'
+                description: 'Username or email address'
             },
             passwordHash: {
                 type: 'string',
-                description: 'Hash hasła użytkownika'
+                description: 'User password hash'
             }
         }
     },
@@ -100,16 +100,16 @@ export const components = {
         properties: {
             username: {
                 type: 'string',
-                description: 'Nazwa użytkownika'
+                description: 'Username'
             },
             email: {
                 type: 'string',
                 format: 'email',
-                description: 'Adres email'
+                description: 'Email address'
             },
             password: {
                 type: 'string',
-                description: 'Hasło użytkownika'
+                description: 'User password'
             }
         }
     },
@@ -119,16 +119,16 @@ export const components = {
         properties: {
             title: {
                 type: 'string',
-                description: 'Tytuł streamu'
+                description: 'Stream title'
             },
             description: {
                 type: 'string',
-                description: 'Opis streamu'
+                description: 'Stream description'
             },
             quality: {
                 type: 'string',
                 enum: ['HD720', 'HD1080'],
-                description: 'Jakość streamu'
+                description: 'Stream quality'
             }
         }
     }

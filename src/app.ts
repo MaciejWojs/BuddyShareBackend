@@ -9,14 +9,20 @@ import { createSwaggerSpec } from './docs/swagger-config';
 import authRoutes from './routes/authRoutes';
 import streamRoutes from './routes/streamRoutes';
 import userRoutes from './routes/usersRoutes';
+import { exit } from 'process';
 
 const app = express();
 const FRONT_PORT = process.env.FRONT_PORT ? parseInt(process.env.FRONT_PORT) : 5000;
+const FRONT_HOST = process.env.FRONT_HOST;
 const secretKey = process.env.COOKIE_SECRET || '';
+
+if (!FRONT_HOST) {
+    throw new Error('FRONT_HOST is not defined in the environment variables');
+}
 
 // Konfiguracja CORS
 const corsOptions = {
-    origin: 'http://localhost:*',
+    origin: `http://${FRONT_HOST}:${FRONT_PORT}`,
     // + FRONT_PORT,
     optionsSuccessStatus: 200,
     credentials: true

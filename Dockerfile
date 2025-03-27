@@ -29,4 +29,4 @@ RUN apk add --no-cache ffmpeg
 # Generate Prisma client
 RUN bunx prisma generate
 
-CMD ["bun", "run", "./server.js"]
+CMD [ "bun", "run", "container" ]

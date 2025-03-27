@@ -22,11 +22,13 @@ export const exists = async (req: Request, res: Response) => {
         });
         return;
     }
-    prisma.user.findUnique({
-        where: {
-            displayName: username
-        }
-    }).then((user) => {
+   try {
+       const user = await prisma.user.findUnique({
+            where: {
+                displayName: username
+            }
+        });
+        
         if (user) {
             console.log(`User ${user.displayName} exists`);
             res.status(StatusCodes.OK).json({
@@ -42,13 +44,11 @@ export const exists = async (req: Request, res: Response) => {
                 message: 'User not found'
             });
         }
-    }
-    ).catch((error) => {
+   } catch (error: any) {
         console.error(`Error checking user existence: ${error}`);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
             success: false,
             message: 'Error checking user existence'
         });
-    }
-    );
+   }
 };

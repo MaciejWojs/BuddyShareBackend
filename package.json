@@ -21,11 +21,13 @@
   "scripts": {
     "swagger": "bun run src/swagger.ts",
     "prod": "bun run dist/server.js",
-    "dev": "bun run src/server.ts",
+    "dev": "bun run db && bun run src/server.ts",
     "build": "tsc",
     "watch": "bun --hot /src/server.ts",
     "start": "bun run build && bun run prod",
-    "test": "bunx vitest run"
+    "test": "bunx vitest run",
+    "db": "bunx prisma migrate deploy",
+    "container": "bun run db && bun run server.js"
   },
   "peerDependencies": {
     "typescript": "^5.7.3"
