@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,119 +9,240 @@ datasource db {
 
 enum Role {
   USER
-  SUBSCRIBER
-  STREAMER
-  MODERATOR
+  ADMIN
 }
 
-enum StreamStatus {
-  ACTIVE
-  ENDED
+model Users {
+  userId         Int @id @default(autoincrement()) @map("id")
+  userInfoId     Int @unique @map("user_info_id")
+  userSettingsId Int @unique @map("user_settings_id")
+
+  userInfo     UsersInfo    @relation("users_info", fields: [userInfoId], references: [userInfoId])
+  userSettings UserSettings @relation("User_UserSettings", fields: [userSettingsId], references: [userSettingsId])
+
+  streamer  Streamers?  @relation("UserStreamer")
+  moderator Moderators? @relation("UserModerator")
+
+  notifications Notifications[]
+  subscribers   Subscribers[]
+  chatMessages  ChatMessages[]
+  // userPermissions UserPermissions[]
+
+  @@map("users")
 }
 
-enum StreamQuality {
-  HD720
-  HD1080
+model UsersInfo {
+  userInfoId     Int      @id @default(autoincrement()) @map("id")
+  username       String   @unique
+  profilePicture String   @default("") @map("profile_picture")
+  description    String   @default("")
+  email          String   @unique
+  isBanned       Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  // userRoleId     Int      @map("user_role_id")
+
+  // userRole UserRoles @relation(fields: [userRoleId], references: [userRoleId])
+  userRole Role   @default(USER)
+  user     Users? @relation("users_info")
+
+  @@map("users_info")
 }
 
-enum NotificationType {
-  STREAM_START
-  SYSTEM
+model UserSettings {
+  userSettingsId       Int     @id @default(autoincrement()) @map("id")
+  notificationsEnabled Boolean @default(true) @map("notifications_enabled")
+  darkMode             Boolean @default(true)
+  passwordHash         String  @map("password_hash")
+
+  user Users? @relation("User_UserSettings")
+
+  @@map("user_settings")
 }
 
-enum ModerationActionType {
-  BLOCK
-  DELETE_MESSAGE
+// model UserRoles {
+//   userRoleId  Int     @id @default(autoincrement()) @map("id")
+//   name        String  @unique
+//   isSystem    Boolean @default(false)
+//   description String?
+
+//   userInfo    UsersInfo[]
+//   permissions RolePermissions[]
+
+//   @@map("user_roles")
+// }
+
+// model Permissions {
+//   permissionId Int     @id @default(autoincrement()) @map("id")
+//   name         String  @unique
+//   description  String?
+
+//   rolePermissions RolePermissions[]
+//   userPermissions UserPermissions[]
+
+//   @@map("permissions")
+// }
+
+// model RolePermissions {
+//   rolePermissionId Int @id @default(autoincrement()) @map("id")
+//   roleId           Int @map("role_id")
+//   permissionId     Int @map("permission_id")
+
+//   role       UserRoles   @relation(fields: [roleId], references: [userRoleId])
+//   permission Permissions @relation(fields: [permissionId], references: [permissionId])
+
+//   @@map("role_permissions")
+// }
+
+// model UserPermissions {
+//   userPermissionId Int @id @default(autoincrement()) @map("id")
+//   userId           Int @map("user_id")
+//   permissionId     Int @map("permission_id")
+
+//   user       Users       @relation(fields: [userId], references: [userId])
+//   permission Permissions @relation(fields: [permissionId], references: [permissionId])
+
+//   @@map("user_permissions")
+// }
+
+model Streamers {
+  streamerId Int @id @default(autoincrement()) @map("id")
+  userId     Int @unique @map("user_id")
+
+  user        Users              @relation("UserStreamer", fields: [userId], references: [userId])
+  streams     Streams[]
+  subscribers Subscribers[]
+  moderators  StreamModerators[]
+
+  @@map("streamers")
 }
 
-model User {
-  id             Int       @id @default(autoincrement())
-  email          String    @unique @db.VarChar(255)
-  passwordHash   String    @db.VarChar(255)
-  displayName    String    @unique @db.VarChar(50)
-  profilePicture String?   @db.VarChar(255)
-  role           Role      @default(USER)
-  createdAt      DateTime  @default(now())
-  lastLogin      DateTime?
+model Moderators {
+  moderatorId Int @id @default(autoincrement()) @map("id")
+  userId      Int @unique @map("user_id")
 
-  // Relations
-  streams          Stream[]
-  chatMessages     ChatMessage[]
-  notifications    Notification[]
-  moderatedActions ModerationAction[] @relation("ModeratorActions")
-  subscriptions    Subscription[]     @relation("Subscriber")
-  subscribedTo     Subscription[]     @relation("Streamer")
-  ModerationAction ModerationAction[]
+  user       Users              @relation("UserModerator", fields: [userId], references: [userId])
+  moderators StreamModerators[]
+
+  @@map("moderators")
 }
 
-model Stream {
-  id          Int           @id @default(autoincrement())
-  title       String        @db.VarChar(100)
-  description String?
-  startTime   DateTime      @default(now())
-  endTime     DateTime?
-  status      StreamStatus  @default(ACTIVE)
-  quality     StreamQuality
-  viewerCount Int           @default(0)
+model StreamModerators {
+  streamModeratorId Int @id @default(autoincrement()) @map("id")
+  streamerId        Int @map("streamer_id")
+  moderatorId       Int @map("moderator_id")
 
-  // Relations
-  streamer         User               @relation(fields: [streamerId], references: [id])
-  streamerId       Int
-  chatMessages     ChatMessage[]
-  ModerationAction ModerationAction[]
+  streamer  Streamers  @relation(fields: [streamerId], references: [streamerId])
+  moderator Moderators @relation(fields: [moderatorId], references: [moderatorId])
 
-  @@index([status, startTime])
+  @@map("stream_moderators")
 }
 
-model ChatMessage {
-  id        Int      @id @default(autoincrement())
-  message   String
-  timestamp DateTime @default(now())
-  isDeleted Boolean  @default(false)
+model Streams {
+  streamId   Int @id @default(autoincrement()) @map("id")
+  streamerId Int @map("streamer_id")
+  optionsId  Int @unique @map("options_id")
 
-  // Relations
-  stream   Stream @relation(fields: [streamId], references: [id])
-  streamId Int
-  user     User   @relation(fields: [userId], references: [id])
-  userId   Int
+  streamer      Streamers           @relation(fields: [streamerId], references: [streamerId])
+  options       StreamOptions       @relation(fields: [optionsId], references: [streamOptionId])
+  chatMessages  ChatMessages[]
+  notifications Notifications[]
+  tags          StreamsTags[]
+  categories    StreamsCategories[]
 
-  @@index([timestamp, isDeleted])
+  @@map("streams")
 }
 
-model Notification {
-  id        Int              @id @default(autoincrement())
-  type      NotificationType
-  content   String
-  createdAt DateTime         @default(now())
-  isRead    Boolean          @default(false)
+model ChatMessages {
+  chatMessageId Int      @id @default(autoincrement()) @map("id")
+  streamId      Int      @map("stream_id")
+  userId        Int      @map("user_id")
+  message       String
+  createdAt     DateTime @map("created_at")
+  isDeleted     Boolean  @map("is_deleted")
 
-  // Relations
-  user   User @relation(fields: [userId], references: [id])
-  userId Int
+  stream Streams @relation(fields: [streamId], references: [streamId])
+  user   Users   @relation(fields: [userId], references: [userId])
+
+  @@map("chat_messages")
 }
 
-model ModerationAction {
-  id         Int                  @id @default(autoincrement())
-  actionType ModerationActionType
-  reason     String?
-  timestamp  DateTime             @default(now())
+model StreamOptions {
+  streamOptionId Int       @id @default(autoincrement()) @map("id")
+  title          String
+  description    String
+  createdAt      DateTime  @map("created_at")
+  updatedAt      DateTime  @map("updated_at")
+  thumbnail      String
+  isDeleted      Boolean
+  isLive         Boolean
+  path           String?
+  Streams        Streams[]
 
-  // Relations
-  moderator    User    @relation("ModeratorActions", fields: [moderatorId], references: [id])
-  moderatorId  Int
-  targetUser   User    @relation(fields: [targetUserId], references: [id])
-  targetUserId Int
-  stream       Stream? @relation(fields: [streamId], references: [id])
-  streamId     Int?
+  @@map("stream_options")
 }
 
-model Subscription {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
+model Tags {
+  tagId Int    @id @default(autoincrement()) @map("id")
+  name  String @unique
 
-  // Relations
-  subscriber   User @relation("Subscriber", fields: [subscriberId], references: [id])
-  subscriberId Int
-  streamer     User @relation("Streamer", fields: [streamerId], references: [id])
-  streamerId   Int
+  streamTags StreamsTags[]
+
+  @@map("tags")
+}
+
+model StreamsTags {
+  streamTagId Int @id @default(autoincrement()) @map("id")
+  streamId    Int @map("stream_id")
+  tagId       Int @map("tag_id")
+
+  stream Streams @relation(fields: [streamId], references: [streamId])
+  tag    Tags    @relation(fields: [tagId], references: [tagId])
+
+  @@map("streams_tags")
+}
+
+model Categories {
+  categoryId Int    @id @default(autoincrement()) @map("id")
+  name       String @unique
+
+  streamCategories StreamsCategories[]
+
+  @@map("categories")
+}
+
+model StreamsCategories {
+  streamCategoryId Int @id @default(autoincrement()) @map("id")
+  streamId         Int @map("stream_id")
+  categoryId       Int @map("category_id")
+
+  stream   Streams    @relation(fields: [streamId], references: [streamId])
+  category Categories @relation(fields: [categoryId], references: [categoryId])
+
+  @@map("streams_categories")
+}
+
+model Notifications {
+  notificationId Int      @id @default(autoincrement()) @map("id")
+  userId         Int      @map("user_id")
+  streamId       Int?     @map("stream_id")
+  message        String
+  createdAt      DateTime @map("created_at")
+  isRead         Boolean
+
+  user   Users    @relation(fields: [userId], references: [userId])
+  stream Streams? @relation(fields: [streamId], references: [streamId])
+
+  @@map("notifications")
+}
+
+model Subscribers {
+  subscriberId Int @id @default(autoincrement()) @map("id")
+  userId       Int @map("user_id")
+  streamerId   Int @map("streamer_id")
+
+  user     Users     @relation(fields: [userId], references: [userId])
+  streamer Streamers @relation(fields: [streamerId], references: [streamerId])
+
+  @@map("subscribers")
 }
