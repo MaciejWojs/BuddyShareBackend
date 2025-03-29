@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RTMP HLS Player</title>
+    <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet">
+    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        .video-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .error {
+            background-color: #ffdddd;
+            color: #d8000c;
+        }
+        .success {
+            background-color: #ddffdd;
+            color: #4f8a10;
+        }
+        input {
+            padding: 8px;
+            margin: 10px 0;
+            width: 300px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Odtwarzacz RTMP Stream</h1>
+    <div class="video-container">
+        <input type="text" id="stream-name" placeholder="Nazwa streamu (np. stream)" value="stream">
+        <button onclick="loadStream()">Załaduj stream</button>
+        
+        <div id="status-message" class="status"></div>
+        
+        <video id="my-player" class="video-js vjs-big-play-centered" controls preload="auto" width="640" height="360">
+            <p class="vjs-no-js">
+                Aby obejrzeć ten film, włącz JavaScript i rozważ aktualizację przeglądarki.
+            </p>
+        </video>
+    </div>
+
+    <script>
+        var player;
+        
+        function initPlayer() {
+            player = videojs('my-player', {
+                autoplay: false,
+                fluid: true,
+            });
+        }
+        
+        function loadStream() {
+            const streamName = document.getElementById('stream-name').value;
+            const hlsUrl = `/hls/${streamName}.m3u8`;
+            const statusMsg = document.getElementById('status-message');
+            
+            if (!player) {
+                initPlayer();
+            }
+            
+            // Sprawdź czy strumień istnieje
+            fetch(hlsUrl)
+                .then(response => {
+                    if (response.ok) {
+                        statusMsg.innerText = "Stream znaleziony! Odtwarzanie...";
+                        statusMsg.className = "status success";
+                        
+                        player.src({
+                            src: hlsUrl,
+                            type: 'application/x-mpegURL'
+                        });
+                        
+                        player.play();
+                    } else {
+                        statusMsg.innerText = "Błąd: Stream nie jest dostępny. Sprawdź, czy nazwa streamu jest poprawna i czy streamowanie jest aktywne.";
+                        statusMsg.className = "status error";
+                    }
+                })
+                .catch(error => {
+                    statusMsg.innerText = `Błąd: ${error.message}`;
+                    statusMsg.className = "status error";
+                });
+        }
+        
+        document.addEventListener('DOMContentLoaded', initPlayer);
+    </script>
+</body>
+</html>
