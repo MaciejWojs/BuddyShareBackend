@@ -35,18 +35,35 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const email = EmailValidator.validate(username) ? username : null;
-    const loginField = email ? { email } : { displayName: username };
+    const loginField = email ? { email } : { username: username };
 
     try {
-        const prismaUser = await prisma.user.findFirst({
+        const prismaUser = await prisma.users.findFirst({
             where: {
-                ...loginField,
-                passwordHash: passwordHash
+                userInfo: {
+                    ...loginField
+                },
+                userSettings: {
+                    passwordHash: passwordHash
+                }
+            },
+            include: {
+                userInfo: true
             }
         });
 
         if (prismaUser) {
-            const { passwordHash, ...user } = prismaUser;
+            if (prismaUser.userInfo.isBanned) {
+                console.log("User is banned");
+                res.status(StatusCodes.UNAUTHORIZED).json({
+                    success: false,
+                    cause: "banned",
+                    message: 'User is banned'
+                });
+                return;
+            }
+            const { ...user } = prismaUser;
+            console.log("User found:", user.userInfo.username);
             const token = jwt.sign(user, JWT_ACCESS_SECRET, { expiresIn: "1h" });
             res.cookie('JWT', token, { signed: true, httpOnly: true, secure: true })
                 .status(StatusCodes.OK)
@@ -57,6 +74,7 @@ export const login = async (req: Request, res: Response) => {
         } else {
             res.status(StatusCodes.UNAUTHORIZED).json({
                 success: false,
+                cause: "credentials",
                 message: 'Invalid credentials'
             });
         }
@@ -126,12 +144,12 @@ export const register = async (req: Request, res: Response) => {
 
     console.log("Creating user in database...");
     try {
-        const exist_displayName = await prisma.user.findFirst({
+        const exist_displayName = await prisma.usersInfo.findUnique({
             where: {
-                displayName: username
+                username: username
             }
         });
-        const exist_email = await prisma.user.findFirst({
+        const exist_email = await prisma.usersInfo.findFirst({
             where: {
                 email: email
             }
@@ -157,16 +175,25 @@ export const register = async (req: Request, res: Response) => {
             return;
         }
 
-        const usr = await prisma.user.create({
+
+        // Tworzymy użytkownika z powiązanymi danymi
+        const usr = await prisma.users.create({
             data: {
-                displayName: username,
-                email: email,
-                passwordHash: HASH,
-                lastLogin: new Date()
+                userInfo: {
+                    create: {
+                        username: username,
+                        email: email,
+                    }
+                },
+                userSettings: {
+                    create: {
+                        passwordHash: HASH
+                    }
+                }
             }
         });
+
         console.log("User created successfully:", username);
-        console.log("User role", usr.role);
         res.status(StatusCodes.CREATED).json({
             success: true,
             message: 'User successfully registered'
@@ -223,9 +250,9 @@ export const logout = (req: Request, res: Response) => {
  * @returns {void} - Doesn't return a value, but sends a JSON response with user data for testing
  */
 export const test = (req: Request, res: Response) => {
-    res.status(StatusCodes.OK).json({ 
-        success: true, 
-        message: 'Authentication test successful', 
-        user: req.user 
+    res.status(StatusCodes.OK).json({
+        success: true,
+        message: 'Authentication test successful',
+        user: req.user
     });
 };

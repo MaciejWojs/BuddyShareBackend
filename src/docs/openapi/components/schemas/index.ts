@@ -2,69 +2,150 @@ export const components = {
     User: {
         type: 'object',
         properties: {
-            id: {
+            userId: {
                 type: 'integer',
-                description: 'Unikatowy identyfikator użytkownika'
+                description: 'Unique user identifier'
             },
-            displayName: {
-                type: 'string',
-                description: 'Nazwa wyświetlana użytkownika'
+            userInfoId: {
+                type: 'integer',
+                description: 'User info identifier'
             },
-            email: {
-                type: 'string',
-                format: 'email',
-                description: 'Adres email użytkownika'
+            userSettingsId: {
+                type: 'integer',
+                description: 'User settings identifier'
             },
-            role: {
-                type: 'string',
-                enum: ['USER', 'SUBSCRIBER', 'STREAMER', 'MODERATOR'],
-                description: 'Rola użytkownika w systemie'
+            userInfo: {
+                type: 'object',
+                properties: {
+                    userInfoId: {
+                        type: 'integer',
+                        description: 'User info identifier'
+                    },
+                    username: {
+                        type: 'string',
+                        description: 'Username'
+                    },
+                    profilePicture: {
+                        type: 'string',
+                        description: 'URL to profile picture'
+                    },
+                    description: {
+                        type: 'string',
+                        description: 'User description'
+                    },
+                    email: {
+                        type: 'string',
+                        format: 'email',
+                        description: 'User email address'
+                    },
+                    isBanned: {
+                        type: 'boolean',
+                        description: 'Whether the user is banned'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'User creation date'
+                    },
+                    updatedAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'User last update date'
+                    },
+                    userRole: {
+                        type: 'string',
+                        enum: ['USER', 'ADMIN'],
+                        description: 'User role in the system'
+                    }
+                }
             },
-            lastLogin: {
-                type: 'string',
-                format: 'date-time',
-                description: 'Data ostatniego logowania'
+            settings: {
+                type: 'object',
+                properties: {
+                    userSettingsId: {
+                        type: 'integer',
+                        description: 'User settings identifier'
+                    },
+                    notificationsEnabled: {
+                        type: 'boolean',
+                        description: 'Whether notifications are enabled'
+                    },
+                    darkMode: {
+                        type: 'boolean',
+                        description: 'Whether dark mode is enabled'
+                    },
+                    language: {
+                        type: 'string',
+                        enum: ['pl', 'en'],
+                        description: 'User interface language preference'
+                    }
+                }
             }
         }
     },
     Stream: {
         type: 'object',
         properties: {
-            id: {
+            streamId: {
                 type: 'integer',
-                description: 'Unikatowy identyfikator streamu'
+                description: 'Unique stream identifier'
             },
-            title: {
-                type: 'string',
-                description: 'Tytuł streamu'
-            },
-            description: {
-                type: 'string',
-                description: 'Opis streamu'
-            },
-            startTime: {
-                type: 'string',
-                format: 'date-time',
-                description: 'Czas rozpoczęcia streamu'
-            },
-            endTime: {
-                type: 'string',
-                format: 'date-time',
-                description: 'Czas zakończenia streamu'
-            },
-            status: {
-                type: 'string',
-                enum: ['ACTIVE', 'ENDED'],
-                description: 'Status streamu'
-            },
-            quality: {
-                type: 'string',
-                enum: ['HD720', 'HD1080'],
-                description: 'Jakość streamu'
-            },
-            viewerCount: {
+            streamerId: {
                 type: 'integer',
-                description: 'Liczba oglądających'
+                description: 'Streamer identifier'
+            },
+            optionsId: {
+                type: 'integer',
+                description: 'Stream options identifier'
+            },
+            options: {
+                type: 'object',
+                properties: {
+                    title: {
+                        type: 'string',
+                        description: 'Stream title'
+                    },
+                    description: {
+                        type: 'string',
+                        description: 'Stream description'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'Stream creation time'
+                    },
+                    updatedAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        description: 'Stream last update time'
+                    },
+                    thumbnail: {
+                        type: 'string',
+                        description: 'Stream thumbnail URL'
+                    },
+                    isLive: {
+                        type: 'boolean',
+                        description: 'Whether the stream is currently live'
+                    },
+                    isDeleted: {
+                        type: 'boolean',
+                        description: 'Whether the stream is deleted'
+                    }
+                }
+            },
+            tags: {
+                type: 'array',
+                items: {
+                    type: 'string'
+                },
+                description: 'Stream tags'
+            },
+            categories: {
+                type: 'array',
+                items: {
+                    type: 'string'
+                },
+                description: 'Stream categories'
             }
         }
     },
@@ -86,11 +167,11 @@ export const components = {
         properties: {
             username: {
                 type: 'string',
-                description: 'Nazwa użytkownika lub adres email'
+                description: 'Username or email address'
             },
             passwordHash: {
                 type: 'string',
-                description: 'Hash hasła użytkownika'
+                description: 'User password hash'
             }
         }
     },
@@ -100,35 +181,151 @@ export const components = {
         properties: {
             username: {
                 type: 'string',
-                description: 'Nazwa użytkownika'
+                description: 'Username'
             },
             email: {
                 type: 'string',
                 format: 'email',
-                description: 'Adres email'
+                description: 'Email address'
             },
             password: {
                 type: 'string',
-                description: 'Hasło użytkownika'
+                description: 'User password'
             }
         }
     },
     StreamRequest: {
         type: 'object',
-        required: ['title', 'quality'],
+        required: ['title'],
         properties: {
             title: {
                 type: 'string',
-                description: 'Tytuł streamu'
+                description: 'Stream title'
             },
             description: {
                 type: 'string',
-                description: 'Opis streamu'
+                description: 'Stream description'
             },
-            quality: {
+            thumbnail: {
                 type: 'string',
-                enum: ['HD720', 'HD1080'],
-                description: 'Jakość streamu'
+                description: 'Stream thumbnail URL'
+            }
+        }
+    },
+    UserExistsResponse: {
+        type: 'object',
+        properties: {
+            exists: {
+                type: 'boolean',
+                example: true
+            },
+            success: {
+                type: 'boolean',
+                example: true
+            },
+            message: {
+                type: 'string',
+                example: 'User exists'
+            }
+        }
+    },
+    UserBriefInfo: {
+        type: 'object',
+        properties: {
+            userId: {
+                type: 'integer',
+                description: 'User ID'
+            },
+            username: {
+                type: 'string',
+                description: 'Username'
+            },
+            profilePicture: {
+                type: 'string',
+                description: 'URL to profile picture'
+            },
+            isBanned: {
+                type: 'boolean',
+                description: 'Whether the user is banned'
+            },
+            userRole: {
+                type: 'string',
+                enum: ['USER', 'ADMIN'],
+                description: 'User role'
+            }
+        }
+    },
+    UserProfile: {
+        type: 'object',
+        properties: {
+            username: {
+                type: 'string',
+                description: 'Username'
+            },
+            profilePicture: {
+                type: 'string',
+                description: 'URL to profile picture'
+            },
+            description: {
+                type: 'string',
+                description: 'User description'
+            },
+            createdAt: {
+                type: 'string',
+                format: 'date-time',
+                description: 'User creation date'
+            },
+            isBanned: {
+                type: 'boolean',
+                description: 'Whether the user is banned'
+            },
+            userRole: {
+                type: 'string',
+                enum: ['USER', 'ADMIN'],
+                description: 'User role'
+            },
+            followersCount: {
+                type: 'integer',
+                description: 'Number of followers'
+            },
+            followingCount: {
+                type: 'integer',
+                description: 'Number of users being followed'
+            },
+            isLive: {
+                type: 'boolean',
+                description: 'Whether the user is currently streaming'
+            }
+        }
+    },
+    UpdateUserProfileRequest: {
+        type: 'object',
+        properties: {
+            description: {
+                type: 'string',
+                description: 'User description'
+            },
+            profilePicture: {
+                type: 'string',
+                description: 'URL to profile picture'
+            }
+        }
+    },
+    UpdateUserSettingsRequest: {
+        type: 'object',
+        properties: {
+            notificationsEnabled: {
+                type: 'boolean',
+                description: 'Whether notifications are enabled'
+            },
+            darkMode: {
+                type: 'boolean',
+                description: 'Whether dark mode is enabled'
+            },
+            language: {
+                type: 'string',
+                enum: ['pl', 'en'],
+                description: 'User interface language preference'
             }
         }
     }

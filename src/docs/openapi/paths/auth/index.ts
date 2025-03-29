@@ -42,6 +42,14 @@ export const authPathsEN = {
               schema: { $ref: '#/components/schemas/Error' }
             }
           }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     }
@@ -96,6 +104,14 @@ export const authPathsEN = {
               }
             }
           }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     }
@@ -148,6 +164,39 @@ export const authPathsEN = {
         }
       }
     }
+  },
+  '/auth/test': {
+    get: {
+      tags: ['Authentication'],
+      summary: 'Test authentication',
+      description: 'Test endpoint for authentication verification',
+      security: [{ cookieAuth: [] }],
+      responses: {
+        '200': {
+          description: 'Authentication test successful',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Authentication test successful' },
+                  user: { $ref: '#/components/schemas/User' }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -190,6 +239,14 @@ export const authPathsPL = {
         },
         '401': {
           description: 'Nieprawidłowe dane logowania',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -249,6 +306,14 @@ export const authPathsPL = {
               }
             }
           }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     }
@@ -296,6 +361,39 @@ export const authPathsPL = {
                   message: { type: 'string', example: 'Użytkownik wylogowany pomyślnie' }
                 }
               }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/auth/test': {
+    get: {
+      tags: ['Uwierzytelnianie'],
+      summary: 'Test uwierzytelnienia',
+      description: 'Punkt końcowy do testowania uwierzytelnienia',
+      security: [{ cookieAuth: [] }],
+      responses: {
+        '200': {
+          description: 'Test uwierzytelnienia pomyślny',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Test uwierzytelnienia pomyślny' },
+                  user: { $ref: '#/components/schemas/User' }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
             }
           }
         }

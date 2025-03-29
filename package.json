@@ -11,7 +11,7 @@
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/multer": "^1.4.12",
-    "@types/node": "^20.17.25",
+    "@types/node": "^20.17.28",
     "@types/ws": "^8.18.0",
     "nodemon": "^3.1.9",
     "typescript": "^5.8.2",
@@ -21,11 +21,13 @@
   "scripts": {
     "swagger": "bun run src/swagger.ts",
     "prod": "bun run dist/server.js",
-    "dev": "bun run src/server.ts",
+    "dev": "bun run db && bun run src/server.ts",
     "build": "tsc",
     "watch": "bun --hot /src/server.ts",
     "start": "bun run build && bun run prod",
-    "test": "bunx vitest run"
+    "test": "bunx vitest run",
+    "db": "bunx prisma migrate deploy",
+    "container": "bun run db && bun run server.js"
   },
   "peerDependencies": {
     "typescript": "^5.7.3"
@@ -49,6 +51,7 @@
     "socket.io": "^4.8.1",
     "swagger-autogen": "^2.23.7",
     "swagger-jsdoc": "^6.2.8",
+    "swagger-themes": "^1.4.3",
     "swagger-ui-express": "^5.0.1",
     "ts-node": "^10.9.2",
     "ws": "^8.18.1"

@@ -37,7 +37,7 @@ export function createOpenAPISpec(language: 'en' | 'pl' = 'en') {
     paths: {
       ...(isEnglish ? authPathsEN : authPathsPL),
       ...(isEnglish ? mediaPathsEN : mediaPathsPL),
-      ...(isEnglish ? usersPathsEN : usersPathsPL)
+      ...(isEnglish ? usersPathsEN : usersPathsPL) 
     },
     components: {
       schemas: components,

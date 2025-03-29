@@ -17,6 +17,14 @@ export const mediaPathsEN = {
               }
             }
           }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     },
@@ -48,8 +56,24 @@ export const mediaPathsEN = {
             }
           }
         },
+        '400': {
+          description: 'Bad request - missing required fields',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
         '401': {
           description: 'Not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -83,7 +107,8 @@ export const mediaPathsEN = {
               schema: {
                 type: 'object',
                 properties: {
-                  message: { type: 'string', example: 'Get stream with ID: 123' }
+                  message: { type: 'string', example: 'Get stream with ID: 123' },
+                  data: { $ref: '#/components/schemas/Stream' }
                 }
               }
             }
@@ -91,6 +116,14 @@ export const mediaPathsEN = {
         },
         '404': {
           description: 'Stream not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -138,6 +171,14 @@ export const mediaPathsEN = {
             }
           }
         },
+        '400': {
+          description: 'Bad request - missing required fields',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
         '401': {
           description: 'Not authenticated',
           content: {
@@ -148,6 +189,14 @@ export const mediaPathsEN = {
         },
         '404': {
           description: 'Stream not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -201,6 +250,14 @@ export const mediaPathsEN = {
               schema: { $ref: '#/components/schemas/Error' }
             }
           }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         }
       }
     }
@@ -224,6 +281,14 @@ export const mediaPathsPL = {
                   message: { type: 'string', example: 'Pobierz wszystkie transmisje' }
                 }
               }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
             }
           }
         }
@@ -257,8 +322,24 @@ export const mediaPathsPL = {
             }
           }
         },
+        '400': {
+          description: 'Nieprawidłowe żądanie - brak wymaganych pól',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
         '401': {
           description: 'Brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -292,7 +373,8 @@ export const mediaPathsPL = {
               schema: {
                 type: 'object',
                 properties: {
-                  message: { type: 'string', example: 'Pobierz transmisję z ID: 123' }
+                  message: { type: 'string', example: 'Pobierz transmisję z ID: 123' },
+                  data: { $ref: '#/components/schemas/Stream' }
                 }
               }
             }
@@ -300,6 +382,14 @@ export const mediaPathsPL = {
         },
         '404': {
           description: 'Nie znaleziono transmisji',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -347,6 +437,14 @@ export const mediaPathsPL = {
             }
           }
         },
+        '400': {
+          description: 'Nieprawidłowe żądanie - brak wymaganych pól',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
         '401': {
           description: 'Brak uwierzytelnienia',
           content: {
@@ -357,6 +455,14 @@ export const mediaPathsPL = {
         },
         '404': {
           description: 'Nie znaleziono transmisji',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -405,6 +511,14 @@ export const mediaPathsPL = {
         },
         '404': {
           description: 'Nie znaleziono transmisji',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
