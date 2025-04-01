@@ -9,14 +9,21 @@ import { createSwaggerSpec } from './docs/swagger-config';
 import authRoutes from './routes/authRoutes';
 import streamRoutes from './routes/streamRoutes';
 import userRoutes from './routes/usersRoutes';
+import { SwaggerTheme, SwaggerThemeNameEnum } from 'swagger-themes';
 
 const app = express();
+const theme = new SwaggerTheme();
 const FRONT_PORT = process.env.FRONT_PORT ? parseInt(process.env.FRONT_PORT) : 5000;
+const FRONT_HOST = process.env.FRONT_HOST;
 const secretKey = process.env.COOKIE_SECRET || '';
+
+if (!FRONT_HOST) {
+    throw new Error('FRONT_HOST is not defined in the environment variables');
+}
 
 // Konfiguracja CORS
 const corsOptions = {
-    origin: 'http://localhost:*',
+    origin: `http://${FRONT_HOST}:${FRONT_PORT}`,
     // + FRONT_PORT,
     optionsSuccessStatus: 200,
     credentials: true
@@ -57,8 +64,13 @@ app.get('/api-docs', (req, res) => {
   const langToSwitch = currentLang === 'en' ? 'pl' : 'en';
   const langLabel = langToSwitch === 'en' ? 'English' : 'Polski';
 
-  // Generuj HTML ze Swagger UI
-  const swaggerHtml = swaggerUi.generateHTML(req.swaggerDoc);
+  // Swagger UI options
+  const options = {
+    customCss: theme.getBuffer(SwaggerThemeNameEnum.DARK),
+  };
+
+  // Generuj HTML ze Swagger UI z opcjami
+  const swaggerHtml = swaggerUi.generateHTML(req.swaggerDoc, options);
 
   // Dodaj skrypt do przełączania języka bezpośrednio przed </body>
   const scriptToInject = `

@@ -3,11 +3,24 @@ declare global {
     namespace Express {
         interface Request {
             user?: {
-                id: number;
-                displayName: string;
-                email: string;
-                lastLogin: Date;
-                role: Role;
+                userId: number;
+                userInfoId: number;
+                userSettingsId: number;
+                userInfo: {
+                    userInfoId: number;
+                    username: string;
+                    profilePicture: string;
+                    description: string;
+                    email: string;
+                    isBanned: boolean;
+                    createdAt: string | Date;
+                    updatedAt: string | Date;
+                    userRole: Role;
+                };
+                settings?: {
+                    notificationsEnabled: boolean;
+                    darkMode: boolean;
+                };
             };
             swaggerDoc?: any;
         }

@@ -6,6 +6,8 @@ COPY . .
 # Install dependencies
 RUN bun install
 
+RUN bunx prisma generate
+
 # Build the app
 RUN bun run build
 
@@ -29,4 +31,4 @@ RUN apk add --no-cache ffmpeg
 # Generate Prisma client
 RUN bunx prisma generate
 
-CMD ["bun", "run", "./server.js"]
+CMD [ "bun", "run", "container" ]
