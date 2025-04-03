@@ -29,7 +29,9 @@ export const exists = async (req: Request, res: Response) => {
  * @param req Express request object
  * @param res Express response object
  */
+
 export const getAllUsers = async (req: Request, res: Response) => {
+    //! MUST BE AN ADMIN
     try {
         const prismaUsers = await prisma.users.findMany();
 
@@ -127,6 +129,7 @@ export const getAllUsersInfo = async (req: Request, res: Response) => {
  */
 export const banUser = async (req: Request, res: Response) => {
     // Użytkownik istnieje w req.userInfo dzięki middleware
+    //! MUST BE AN ADMIN
     try {
         if (req.userInfo.isBanned) {
             console.error(`User ${req.userInfo.username} is already banned`);
@@ -171,6 +174,7 @@ export const banUser = async (req: Request, res: Response) => {
  * @throws Will return 500 INTERNAL SERVER ERROR if there's an error during the unban process
  */
 export const unbanUser = async (req: Request, res: Response) => {
+    //! MUST BE AN ADMIN
     try {
         if (!req.userInfo.isBanned) {
             console.error(`User ${req.userInfo.username} is not banned`);
@@ -228,6 +232,7 @@ export const unbanUser = async (req: Request, res: Response) => {
  * an error response with the corresponding status code.
  */
 export const changeUsersRole = async (req: Request, res: Response) => {
+    //! MUST BE AN ADMIN
     const { role } = req.body;
 
     if (!role) {
@@ -292,6 +297,7 @@ export const changeUsersRole = async (req: Request, res: Response) => {
  * @description Returns the user role from the request's userInfo property
  */
 export const getUserRole = async (req: Request, res: Response) => {
+    //! MUST BE AN ADMIN
     res.status(StatusCodes.OK).json({
         success: true,
         role: req.userInfo.userRole
