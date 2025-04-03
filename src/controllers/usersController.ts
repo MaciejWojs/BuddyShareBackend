@@ -73,23 +73,46 @@ export const getAllUsersInfo = async (req: Request, res: Response) => {
     //! TODO: Add authentication middleware to protect this route
     //! MUST BE AN ADMIN
     try {
+        // Set headers for streaming JSON
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        
+        // Start the response with an opening bracket for JSON array
+        res.write('[');
+        
         const prismaUsers = await prisma.usersInfo.findMany();
-
-        if (!prismaUsers) {
-            res.status(StatusCodes.NOT_FOUND).json({
-                success: true,
-                message: `${ReasonPhrases.NOT_FOUND}`
-            });
+        
+        if (!prismaUsers || prismaUsers.length === 0) {
+            // Close the array and end the response if no users found
+            res.write(']');
+            res.end();
             return;
         }
-
-        res.status(StatusCodes.OK).json(prismaUsers);
+        
+        // Stream each user one by one
+        prismaUsers.forEach((user, index) => {
+            // Add comma separator between objects except for the last one
+            const separator = index < prismaUsers.length - 1 ? ',' : '';
+            res.write(JSON.stringify(user) + separator);
+        });
+        
+        // Close the JSON array and end the response
+        res.write(']');
+        res.end();
     } catch (error: any) {
         console.error(`Error fetching users: ${error}`);
-        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Error fetching users'
-        });
+        
+        // If headers haven't been sent yet, send error response
+        if (!res.headersSent) {
+            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+                success: false,
+                message: 'Error fetching users'
+            });
+        } else {
+            // If we've already started streaming, end with error notation
+            res.write('{"error": "Error occurred during streaming"}]');
+            res.end();
+        }
     }
 }
 
