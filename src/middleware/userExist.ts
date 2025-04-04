@@ -34,6 +34,14 @@ export const userExistsMiddleware = async (req: Request, res: Response, next: Ne
         const user = await prisma.usersInfo.findUnique({
             where: {
                 username: username
+            },
+            
+            include: {
+                user: {
+                    select: {
+                        userId: true,
+                    }
+                }
             }
         });
 
