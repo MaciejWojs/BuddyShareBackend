@@ -16,4 +16,5 @@ router.get('/:username/settings', authenticate, userExistsMiddleware, checkUserR
 // router.patch('/:username/settings', authenticate, userExistsMiddleware, UserController.updateUserSettings)
 router.get('/:username/profile', authenticate, userExistsMiddleware, checkUserResourceOwnership, UserController.getUserProfile)
 
+
 export default router;

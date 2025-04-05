@@ -20,7 +20,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
     if (!JWT_ACCESS_SECRET) {
         console.error("JWT_ACCESS_SECRET is not defined");
-        res.json({ success: false, message: "JWT_ACCESS" });
+        res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: "JWT" });
         return;
     }
 
@@ -79,6 +79,24 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction): void =
     next();
 }
 
+/**
+ * Middleware that verifies if the authenticated user is a registered streamer
+ * 
+ * This middleware checks the database to confirm whether the current user 
+ * has a record in the streamers table, indicating they have streamer status.
+ * 
+ * @param {Request} req - Express request object containing the authenticated user
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>} - Asynchronous function that calls next() if authorized
+ * 
+ * @throws {StatusCodes.UNAUTHORIZED} - If no user is authenticated
+ * @throws {StatusCodes.FORBIDDEN} - If user is not registered as a streamer
+ * 
+ * @example
+ * // Usage in a route definition:
+ * router.post('/stream', authenticate, isStreamer, streamController.startStream);
+ */
 export const isStreamer = async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
     if (!user) {
