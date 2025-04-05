@@ -84,6 +84,8 @@ async function seedUser(
 async function main() {
     const passwordHash = '2b4ff5c53a3967fe36d283aef35e0810a0ef24f18e501b3ee44a98d370b61428'
     console.log('Rozpoczęto seedowanie bazy danych...');
+    let streamer;
+    let moderators: any = [];
 
     // Konfiguracja użytkowników do seedowania
     let users = [
@@ -106,8 +108,6 @@ async function main() {
 
 
     if (isDevelopment) {
-        // faker.setLocale('pl');
-
         const randomUsers = faker.helpers.multiple(() => {
             return {
                 description: faker.person.bio(),
@@ -121,6 +121,8 @@ async function main() {
         })
 
         users = users.concat(randomUsers);
+        streamer = faker.helpers.arrayElement(randomUsers);
+        moderators = moderators.concat(faker.helpers.arrayElements(randomUsers, 3));
     }
 
     // Seed użytkowników - każdy w osobnej transakcji
@@ -136,6 +138,65 @@ async function main() {
             console.log(`Użytkownik ${user.userInfo.username} (${user.userInfo.userRole}) utworzony/zaktualizowany pomyślnie`);
         } catch (error) {
             console.error(`Nie udało się utworzyć/zaktualizować użytkownika ${userData.username}`);
+        }
+    }
+
+    if (isDevelopment) {
+        try {
+            await prisma.$transaction(async (tx) => {
+                // Znajdź streamera
+                const streamerUser = await tx.usersInfo.findUnique({
+                    where: { username: streamer.username },
+                    include: { user: true }
+                });
+
+                if (!streamerUser?.user?.userId) {
+                    throw new Error(`Nie znaleziono użytkownika ${streamer.username}`);
+                }
+
+                // Utwórz lub zaktualizuj streamera
+                const streamerData = await tx.streamers.upsert({
+                    where: { userId: streamerUser.user.userId },
+                    update: {},
+                    create: { userId: streamerUser.user.userId },
+                });
+
+                console.log(`Streamer ${streamer.username} utworzony/zaktualizowany pomyślnie`);
+
+                // Dodaj moderatorów
+                for (const mod of moderators) {
+                    const modUser = await tx.usersInfo.findUnique({
+                        where: { username: mod.username },
+                        include: { user: true }
+                    });
+
+                    if (!modUser?.user?.userId) {
+                        console.log(`Pominięto moderatora ${mod.username}: użytkownik nie istnieje`);
+                        continue;
+                    }
+
+                    // Utwórz lub zaktualizuj moderatora
+                    const moderator = await tx.moderators.upsert({
+                        where: { userId: modUser.user.userId },
+                        update: {},
+                        create: { userId: modUser.user.userId },
+                    });
+
+                    // Połącz moderatora ze streamerem
+                    await tx.streamModerators.create({
+                        data: {
+                            streamerId: streamerData.streamerId,
+                            moderatorId: moderator.moderatorId
+                        }
+                    });
+
+                    console.log(`Moderator ${mod.username} przypisany do streamera ${streamer.username}`);
+                }
+            });
+
+            console.log('Konfiguracja streamera i moderatorów zakończona pomyślnie');
+        } catch (error) {
+            console.error('Błąd podczas konfiguracji streamera i moderatorów:', error);
         }
     }
 
