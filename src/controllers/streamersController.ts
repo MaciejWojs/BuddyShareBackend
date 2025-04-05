@@ -131,7 +131,7 @@ export const getStreamerModeratorByUsername = async (req: Request, res: Response
     // The middleware (userExistsMiddleware, isStreamer, isModerator, isStreamerModerator) 
     // has already validated that the streamer exists and attached it to req.streamer
     // and validated the moderator username
-
+    console.log("Atempting to get streamer moderator by username");
     // If we reach this point, moderator relationship exists and is in req.streamerModerator
     if (req.isStreamerModerator && req.streamerModerator) {
         return res.status(StatusCodes.OK).json(req.streamerModerator);
