@@ -2,6 +2,7 @@ import { components } from './components/schemas';
 import { authPathsEN, authPathsPL } from './paths/auth/';
 import { mediaPathsEN, mediaPathsPL } from './paths/media/index';
 import { usersPathsEN, usersPathsPL } from './paths/users/index';
+import { streamersPathsEN, streamersPathsPL } from './paths/streamers';
 
 
 /**
@@ -24,20 +25,21 @@ import { usersPathsEN, usersPathsPL } from './paths/users/index';
  */
 export function createOpenAPISpec(language: 'en' | 'pl' = 'en') {
   const isEnglish = language === 'en';
-  
+
   return {
     openapi: '3.0.0',
     info: {
       title: isEnglish ? 'API Documentation' : 'Dokumentacja API',
       version: '1.0.0',
-      description: isEnglish 
+      description: isEnglish
         ? 'API endpoints documentation'
         : 'Dokumentacja punktów końcowych API'
     },
     paths: {
       ...(isEnglish ? authPathsEN : authPathsPL),
       ...(isEnglish ? mediaPathsEN : mediaPathsPL),
-      ...(isEnglish ? usersPathsEN : usersPathsPL) 
+      ...(isEnglish ? usersPathsEN : usersPathsPL),
+      ...(isEnglish ? streamersPathsEN : streamersPathsPL)
     },
     components: {
       schemas: components,

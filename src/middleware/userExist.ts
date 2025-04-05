@@ -21,6 +21,7 @@ const prisma = new PrismaClient();
  * @throws {Error} If there's an error checking if the user exists, it will return an INTERNAL_SERVER_ERROR
  */
 export const userExistsMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+    console.log("userExistsMiddleware is being executed");
     try {
         const username = req.params.username || req.body.username;
 

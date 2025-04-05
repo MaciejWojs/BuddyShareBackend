@@ -328,5 +328,76 @@ export const components = {
                 description: 'User interface language preference'
             }
         }
+    },
+    Streamer: {
+        type: 'object',
+        properties: {
+            streamerId: {
+                type: 'integer',
+                description: 'Unique streamer identifier'
+            },
+            userId: {
+                type: 'integer',
+                description: 'User identifier associated with this streamer'
+            },
+            createdAt: {
+                type: 'string',
+                format: 'date-time',
+                description: 'When the streamer account was created'
+            },
+            user: {
+                type: 'object',
+                properties: {
+                    userInfo: { $ref: '#/components/schemas/UserBriefInfo' }
+                }
+            }
+        }
+    },
+    Moderator: {
+        type: 'object',
+        properties: {
+            moderatorId: {
+                type: 'integer',
+                description: 'Unique moderator identifier'
+            },
+            userId: {
+                type: 'integer',
+                description: 'User identifier associated with this moderator'
+            },
+            user: {
+                type: 'object',
+                properties: {
+                    userInfo: { $ref: '#/components/schemas/UserBriefInfo' }
+                }
+            }
+        }
+    },
+    StreamModerator: {
+        type: 'object',
+        properties: {
+            streamModeratorId: {
+                type: 'integer',
+                description: 'Unique stream moderator identifier'
+            },
+            streamerId: {
+                type: 'integer',
+                description: 'Streamer identifier'
+            },
+            moderatorId: {
+                type: 'integer',
+                description: 'Moderator identifier'
+            },
+            moderator: {
+                type: 'object',
+                properties: {
+                    user: {
+                        type: 'object',
+                        properties: {
+                            userInfo: { $ref: '#/components/schemas/UserBriefInfo' }
+                        }
+                    }
+                }
+            }
+        }
     }
 };
