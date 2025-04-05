@@ -3,6 +3,7 @@ import { components } from './openapi/components/schemas';
 import { authPathsEN, authPathsPL } from './openapi/paths/auth/index';
 import { mediaPathsEN, mediaPathsPL } from './openapi/paths/media/index';
 import { usersPathsEN, usersPathsPL } from './openapi/paths/users/index';
+import { streamersPathsEN, streamersPathsPL } from './openapi/paths/streamers/index';
 
 export function createSwaggerSpec(language: 'en' | 'pl' = 'en'): object {
   const isEnglish = language === 'en';
@@ -48,7 +49,8 @@ export function createSwaggerSpec(language: 'en' | 'pl' = 'en'): object {
   swaggerSpec.paths = {
     ...(isEnglish ? authPathsEN : authPathsPL),
     ...(isEnglish ? mediaPathsEN : mediaPathsPL),
-    ...(isEnglish ? usersPathsEN : usersPathsPL)
+    ...(isEnglish ? usersPathsEN : usersPathsPL),
+    ...(isEnglish ? streamersPathsEN : streamersPathsPL)
   };
   
   return swaggerSpec;

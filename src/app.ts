@@ -6,9 +6,7 @@ import fs from 'bun';
 import path from 'path';
 import { createSwaggerSpec } from './docs/swagger-config';
 
-import authRoutes from './routes/authRoutes';
-import streamRoutes from './routes/streamRoutes';
-import userRoutes from './routes/usersRoutes';
+import * as Routes from './routes';
 import { SwaggerTheme, SwaggerThemeNameEnum } from 'swagger-themes';
 
 const app = express();
@@ -103,8 +101,9 @@ app.get('/api-docs', (req, res) => {
 });
 
 // Routery,
-app.use('/auth', authRoutes);
-app.use('/media', streamRoutes);
-app.use('/users', userRoutes);
+app.use('/streamers', Routes.streamersRoutes);
+app.use('/auth', Routes.authRoutes);
+app.use('/media', Routes.streamRoutes);
+app.use('/users', Routes.userRoutes);
 
 export default app;

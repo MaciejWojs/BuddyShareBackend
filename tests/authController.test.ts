@@ -15,13 +15,17 @@ vi.mock('process', () => {
   };
 });
 
-// Mockowanie PrismaClient
+// Mockowanie PrismaClient zgodnie z aktualnym schematem bazy danych
 vi.mock('@prisma/client', () => {
   const mockPrismaClient = {
-    user: {
+    users: {
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn()
+    },
+    usersInfo: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn()
     },
     $disconnect: vi.fn()
   };
@@ -73,17 +77,17 @@ describe('Kontroler Autentykacji', () => {
     });
 
     it('powinno pomyślnie zalogować z poprawnymi danymi (nazwa użytkownika)', async () => {
-      // Mock dla znalezionego użytkownika
+      // Mock dla znalezionego użytkownika zgodnie z nową strukturą
       const mockUser = {
-        id: 1,
-        displayName: 'testuser',
-        email: 'test@example.com',
-        passwordHash: 'hash123',
-        role: 'USER'
+        userId: 1,
+        userInfo: {
+          username: 'testuser',
+          email: 'test@example.com',
+          isBanned: false
+        },
       };
 
-      (mockPrisma.user.findFirst as any).mockResolvedValue(mockUser);
-      (mockPrisma.user.update as any).mockResolvedValue(mockUser);
+      (mockPrisma.users.findFirst as any).mockResolvedValue(mockUser);
 
       const req = {
         body: {
@@ -105,10 +109,17 @@ describe('Kontroler Autentykacji', () => {
 
       await login(req, res);
 
-      expect(mockPrisma.user.findFirst).toBeCalledWith({
+      expect(mockPrisma.users.findFirst).toBeCalledWith({
         where: {
-          displayName: 'testuser',
-          passwordHash: 'hash123'
+          userInfo: {
+            username: 'testuser'
+          },
+          userSettings: {
+            passwordHash: 'hash123'
+          }
+        },
+        include: {
+          userInfo: true
         }
       });
 
@@ -126,17 +137,17 @@ describe('Kontroler Autentykacji', () => {
     });
 
     it('powinno pomyślnie zalogować z poprawnymi danymi (email)', async () => {
-      // Mock dla znalezionego użytkownika
+      // Mock dla znalezionego użytkownika zgodnie z nową strukturą
       const mockUser = {
-        id: 1,
-        displayName: 'testuser',
-        email: 'test@example.com',
-        passwordHash: 'hash123',
-        role: 'USER'
+        userId: 1,
+        userInfo: {
+          username: 'testuser',
+          email: 'test@example.com',
+          isBanned: false
+        },
       };
 
-      (mockPrisma.user.findFirst as any).mockResolvedValue(mockUser);
-      (mockPrisma.user.update as any).mockResolvedValue(mockUser);
+      (mockPrisma.users.findFirst as any).mockResolvedValue(mockUser);
 
       const req = {
         body: {
@@ -158,10 +169,17 @@ describe('Kontroler Autentykacji', () => {
 
       await login(req, res);
 
-      expect(mockPrisma.user.findFirst).toBeCalledWith({
+      expect(mockPrisma.users.findFirst).toBeCalledWith({
         where: {
-          email: 'test@example.com',
-          passwordHash: 'hash123'
+          userInfo: {
+            email: 'test@example.com'
+          },
+          userSettings: {
+            passwordHash: 'hash123'
+          }
+        },
+        include: {
+          userInfo: true
         }
       });
 
@@ -174,7 +192,7 @@ describe('Kontroler Autentykacji', () => {
     });
 
     it('powinno zwrócić kod 401 dla nieprawidłowych danych logowania', async () => {
-      (mockPrisma.user.findFirst as any).mockResolvedValue(null);
+      (mockPrisma.users.findFirst as any).mockResolvedValue(null);
 
       const req = {
         body: {
@@ -195,13 +213,51 @@ describe('Kontroler Autentykacji', () => {
       expect(statusMock).toBeCalledWith(StatusCodes.UNAUTHORIZED);
       expect(jsonMock).toBeCalledWith(expect.objectContaining({
         success: false,
+        cause: "credentials",
         message: 'Invalid credentials'
+      }));
+    });
+
+    it('powinno zwrócić kod 401 gdy użytkownik jest zbanowany', async () => {
+      // Mock dla zbanowanego użytkownika
+      const mockUser = {
+        userId: 1,
+        userInfo: {
+          username: 'testuser',
+          email: 'test@example.com',
+          isBanned: true
+        },
+      };
+
+      (mockPrisma.users.findFirst as any).mockResolvedValue(mockUser);
+
+      const req = {
+        body: {
+          username: 'testuser',
+          passwordHash: 'hash123'
+        }
+      } as Request;
+
+      const jsonMock = vi.fn();
+      const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+
+      const res = {
+        status: statusMock
+      } as unknown as Response;
+
+      await login(req, res);
+
+      expect(statusMock).toBeCalledWith(StatusCodes.UNAUTHORIZED);
+      expect(jsonMock).toBeCalledWith(expect.objectContaining({
+        success: false,
+        cause: "banned",
+        message: 'User is banned'
       }));
     });
 
     it('powinno zwrócić kod 500 gdy wystąpi problem z bazą danych', async () => {
       // Mockowanie błędu z bazy danych
-      (mockPrisma.user.findFirst as any).mockRejectedValue(new Error('Database error'));
+      (mockPrisma.users.findFirst as any).mockRejectedValue(new Error('Database error'));
 
       const req = {
         body: {
@@ -225,231 +281,242 @@ describe('Kontroler Autentykacji', () => {
         message: 'Internal server error during authentication'
       }));
     });
+  });
 
-    describe('funkcja register', () => {
-      beforeEach(() => {
-        // Mock dla funkcji getPasswordHash
-        vi.spyOn(hashUtils, 'getPasswordHash').mockReturnValue('mocked_hash');
-      });
+  describe('funkcja register', () => {
+    beforeEach(() => {
+      // Mock dla funkcji getPasswordHash
+      vi.spyOn(hashUtils, 'getPasswordHash').mockReturnValue('mocked_hash');
+    });
 
-      it('powinno zwrócić kod 400 gdy brakuje wymaganych pól', async () => {
-        const req = {
-          body: {
-            username: 'testuser'
-            // brakuje email i hasła
-          }
-        } as Request;
+    it('powinno zwrócić kod 400 gdy brakuje wymaganych pól', async () => {
+      const req = {
+        body: {
+          username: 'testuser'
+          // brakuje email i hasła
+        }
+      } as Request;
 
-        const jsonMock = vi.fn();
-        const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+      const jsonMock = vi.fn();
+      const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
 
-        const res = {
-          status: statusMock
-        } as unknown as Response;
+      const res = {
+        status: statusMock
+      } as unknown as Response;
 
-        await register(req, res);
+      await register(req, res);
 
-        expect(statusMock).toBeCalledWith(StatusCodes.BAD_REQUEST);
-        expect(jsonMock).toBeCalledWith(expect.objectContaining({
-          success: false,
-          message: expect.stringContaining('Missing required fields')
-        }));
-      });
+      expect(statusMock).toBeCalledWith(StatusCodes.BAD_REQUEST);
+      expect(jsonMock).toBeCalledWith(expect.objectContaining({
+        success: false,
+        message: expect.stringContaining('Missing required fields')
+      }));
+    });
 
-      it('powinno zwrócić kod 400 gdy format email jest niepoprawny', async () => {
-        const req = {
-          body: {
-            username: 'testuser',
-            email: 'invalidemail', // niepoprawny format
-            password: 'password123'
-          }
-        } as Request;
+    it('powinno zwrócić kod 400 gdy format email jest niepoprawny', async () => {
+      const req = {
+        body: {
+          username: 'testuser',
+          email: 'invalidemail', // niepoprawny format
+          password: 'password123'
+        }
+      } as Request;
 
-        const jsonMock = vi.fn();
-        const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+      const jsonMock = vi.fn();
+      const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
 
-        const res = {
-          status: statusMock
-        } as unknown as Response;
+      const res = {
+        status: statusMock
+      } as unknown as Response;
 
-        await register(req, res);
+      await register(req, res);
 
-        expect(statusMock).toBeCalledWith(StatusCodes.BAD_REQUEST);
-        expect(jsonMock).toBeCalledWith(expect.objectContaining({
-          success: false,
-          message: expect.stringContaining('Invalid email')
-        }));
-      });
+      expect(statusMock).toBeCalledWith(StatusCodes.BAD_REQUEST);
+      expect(jsonMock).toBeCalledWith(expect.objectContaining({
+        success: false,
+        message: expect.stringContaining('Invalid email')
+      }));
+    });
 
-      it('powinno zwrócić kod 409 gdy nazwa użytkownika już istnieje', async () => {
-        (mockPrisma.user.findFirst as any)
-          .mockResolvedValueOnce({ id: 1, displayName: 'existinguser' }) // dla sprawdzenia nazwy użytkownika
-          .mockResolvedValueOnce(null); // dla sprawdzenia emaila
+    it('powinno zwrócić kod 409 gdy nazwa użytkownika już istnieje', async () => {
+      (mockPrisma.usersInfo.findUnique as any)
+        .mockResolvedValue({ userInfoId: 1, username: 'existinguser' });
 
-        const req = {
-          body: {
-            username: 'existinguser',
-            email: 'new@example.com',
-            password: 'password123'
-          }
-        } as Request;
-
-        const jsonMock = vi.fn();
-        const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
-
-        const res = {
-          status: statusMock
-        } as unknown as Response;
-
-        await register(req, res);
-
-        expect(statusMock).toBeCalledWith(StatusCodes.CONFLICT);
-        expect(jsonMock).toBeCalledWith(expect.objectContaining({
-          success: false,
-          cause: 'username'
-        }));
-      });
-
-      it('powinno zwrócić kod 409 gdy email już istnieje', async () => {
-        (mockPrisma.user.findFirst as any)
-          .mockResolvedValueOnce(null) // dla sprawdzenia nazwy użytkownika
-          .mockResolvedValueOnce({ id: 1, email: 'existing@example.com' }); // dla sprawdzenia emaila
-
-        const req = {
-          body: {
-            username: 'newuser',
-            email: 'existing@example.com',
-            password: 'password123'
-          }
-        } as Request;
-
-        const jsonMock = vi.fn();
-        const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
-
-        const res = {
-          status: statusMock
-        } as unknown as Response;
-
-        await register(req, res);
-
-        expect(statusMock).toBeCalledWith(StatusCodes.CONFLICT);
-        expect(jsonMock).toBeCalledWith(expect.objectContaining({
-          success: false,
-          cause: 'email'
-        }));
-      });
-
-      it('powinno pomyślnie zarejestrować nowego użytkownika', async () => {
-        (mockPrisma.user.findFirst as any).mockResolvedValue(null); // Żaden użytkownik jeszcze nie istnieje
-        (mockPrisma.user.create as any).mockResolvedValue({
-          id: 1,
-          displayName: 'newuser',
+      const req = {
+        body: {
+          username: 'existinguser',
           email: 'new@example.com',
-          role: 'USER'
-        });
+          password: 'password123'
+        }
+      } as Request;
 
-        const req = {
-          body: {
-            username: 'newuser',
-            email: 'new@example.com',
-            password: 'password123'
+      const jsonMock = vi.fn();
+      const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+
+      const res = {
+        status: statusMock
+      } as unknown as Response;
+
+      await register(req, res);
+
+      expect(statusMock).toBeCalledWith(StatusCodes.CONFLICT);
+      expect(jsonMock).toBeCalledWith(expect.objectContaining({
+        success: false,
+        cause: "username",
+        message: 'Username already exists'
+      }));
+    });
+
+    it('powinno zwrócić kod 409 gdy email już istnieje', async () => {
+      (mockPrisma.usersInfo.findUnique as any).mockResolvedValue(null);
+      (mockPrisma.usersInfo.findFirst as any)
+        .mockResolvedValue({ userInfoId: 1, email: 'existing@example.com' });
+
+      const req = {
+        body: {
+          username: 'newuser',
+          email: 'existing@example.com',
+          password: 'password123'
+        }
+      } as Request;
+
+      const jsonMock = vi.fn();
+      const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+
+      const res = {
+        status: statusMock
+      } as unknown as Response;
+
+      await register(req, res);
+
+      expect(statusMock).toBeCalledWith(StatusCodes.CONFLICT);
+      expect(jsonMock).toBeCalledWith(expect.objectContaining({
+        success: false,
+        cause: "email",
+        message: 'Email already exists'
+      }));
+    });
+
+    it('powinno pomyślnie zarejestrować nowego użytkownika', async () => {
+      (mockPrisma.usersInfo.findUnique as any).mockResolvedValue(null);
+      (mockPrisma.usersInfo.findFirst as any).mockResolvedValue(null);
+      (mockPrisma.users.create as any).mockResolvedValue({
+        userId: 1,
+        userInfo: {
+          username: 'newuser',
+          email: 'new@example.com',
+        }
+      });
+
+      const req = {
+        body: {
+          username: 'newuser',
+          email: 'new@example.com',
+          password: 'password123'
+        }
+      } as Request;
+
+      const jsonMock = vi.fn();
+      const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+
+      const res = {
+        status: statusMock
+      } as unknown as Response;
+
+      await register(req, res);
+
+      expect(mockPrisma.users.create).toBeCalledWith({
+        data: expect.objectContaining({
+          userInfo: {
+            create: {
+              username: 'newuser',
+              email: 'new@example.com',
+            }
+          },
+          userSettings: {
+            create: {
+              passwordHash: 'mocked_hash'
+            }
           }
-        } as Request;
-
-        const jsonMock = vi.fn();
-        const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
-
-        const res = {
-          status: statusMock
-        } as unknown as Response;
-
-        await register(req, res);
-
-        expect(mockPrisma.user.create).toBeCalledWith({
-          data: expect.objectContaining({
-            displayName: 'newuser',
-            email: 'new@example.com',
-            passwordHash: 'mocked_hash'
-          })
-        });
-
-        expect(statusMock).toBeCalledWith(StatusCodes.CREATED);
-        expect(jsonMock).toBeCalledWith(expect.objectContaining({
-          success: true,
-          message: expect.any(String)
-        }));
+        })
       });
+
+      expect(statusMock).toBeCalledWith(StatusCodes.CREATED);
+      expect(jsonMock).toBeCalledWith(expect.objectContaining({
+        success: true,
+        message: expect.any(String)
+      }));
     });
+  });
 
-    describe('funkcja getMe', () => {
-      it('powinno zwrócić dane użytkownika z żądania', async () => {
-        const userData = { id: 1, displayName: 'testuser' };
+  describe('funkcja getMe', () => {
+    it('powinno zwrócić dane użytkownika z żądania', async () => {
+      const userData = { id: 1, username: 'testuser' };
 
-        const req = {
-          user: userData
-        } as unknown as Request;
+      const req = {
+        user: userData
+      } as unknown as Request;
 
-        const jsonMock = vi.fn();
-        const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+      const jsonMock = vi.fn();
+      const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
 
-        const res = {
-          status: statusMock
-        } as unknown as Response;
+      const res = {
+        status: statusMock
+      } as unknown as Response;
 
-        await getMe(req, res);
+      await getMe(req, res);
 
-        expect(statusMock).toBeCalledWith(StatusCodes.OK);
-        expect(jsonMock).toBeCalledWith(userData);
-      });
+      expect(statusMock).toBeCalledWith(StatusCodes.OK);
+      expect(jsonMock).toBeCalledWith(userData);
     });
+  });
 
-    describe('funkcja logout', () => {
-      it('powinno usunąć ciasteczko JWT i zwrócić komunikat pomyślnego wylogowania', () => {
-        const req = {} as Request;
+  describe('funkcja logout', () => {
+    it('powinno usunąć ciasteczko JWT i zwrócić komunikat pomyślnego wylogowania', () => {
+      const req = {} as Request;
 
-        const jsonMock = vi.fn();
-        const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
-        const clearCookieMock = vi.fn().mockReturnValue({ status: statusMock });
+      const jsonMock = vi.fn();
+      const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+      const clearCookieMock = vi.fn().mockReturnValue({ status: statusMock });
 
-        const res = {
-          clearCookie: clearCookieMock
-        } as unknown as Response;
+      const res = {
+        clearCookie: clearCookieMock
+      } as unknown as Response;
 
-        logout(req, res);
+      logout(req, res);
 
-        expect(clearCookieMock).toBeCalledWith('JWT');
-        expect(statusMock).toBeCalledWith(StatusCodes.OK);
-        expect(jsonMock).toBeCalledWith(expect.objectContaining({
-          success: true,
-          message: 'User logged out successfully'
-        }));
-      });
+      expect(clearCookieMock).toBeCalledWith('JWT');
+      expect(statusMock).toBeCalledWith(StatusCodes.OK);
+      expect(jsonMock).toBeCalledWith(expect.objectContaining({
+        success: true,
+        message: 'User logged out successfully'
+      }));
     });
+  });
 
-    describe('funkcja test', () => {
-      it('powinno zwrócić dane uwierzytelnionego użytkownika', () => {
-        const userData = { id: 1, displayName: 'testuser' };
+  describe('funkcja test', () => {
+    it('powinno zwrócić dane uwierzytelnionego użytkownika', () => {
+      const userData = { id: 1, displayName: 'testuser' };
 
-        const req = {
-          user: userData
-        } as unknown as Request;
+      const req = {
+        user: userData
+      } as unknown as Request;
 
-        const jsonMock = vi.fn();
-        const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
+      const jsonMock = vi.fn();
+      const statusMock = vi.fn().mockReturnValue({ json: jsonMock });
 
-        const res = {
-          status: statusMock
-        } as unknown as Response;
+      const res = {
+        status: statusMock
+      } as unknown as Response;
 
-        authTest(req, res);
+      authTest(req, res);
 
-        expect(statusMock).toBeCalledWith(StatusCodes.OK);
-        expect(jsonMock).toBeCalledWith(expect.objectContaining({
-          success: true,
-          message: 'Authentication test successful',
-          user: userData
-        }));
-      });
+      expect(statusMock).toBeCalledWith(StatusCodes.OK);
+      expect(jsonMock).toBeCalledWith(expect.objectContaining({
+        success: true,
+        message: 'Authentication test successful',
+        user: userData
+      }));
     });
   });
 });
