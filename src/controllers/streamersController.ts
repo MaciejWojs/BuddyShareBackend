@@ -41,27 +41,26 @@ export const getAllStreamers = async (req: Request, res: Response) => {
  * Controller function to retrieve streamer information by username
  * 
  * This function returns user information for a specified streamer.
- * It requires both userInfo and streamer to be set by preceding middleware.
+ * It relies on middleware to verify the user exists and is a streamer.
  * 
- * @param {Request} req - Express request object with userInfo and streamer properties
+ * @param {Request} req - Express request object with userInfo and streamer properties attached by middleware
  * @param {Response} res - Express response object
  * @returns {Promise<void>} - Asynchronous function that sends JSON response with streamer data
  * 
- * @throws {StatusCodes.BAD_REQUEST} - If userInfo or streamer are not provided
- * 
  * @example
  * // Usage in a route definition:
- * router.get('/streamer/:username', userExists, isStreamer, getStreamerByUsername);
+ * router.get('/streamer/:username', userExistsMiddleware, isStreamer, getStreamerByUsername);
  */
 export const getStreamerByUsername = async (req: Request, res: Response) => {
-
-    const userInfo = req.userInfo;
-    const streamerREQ = req.streamer || req.body.streamer;
-    if (!userInfo || !streamerREQ) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
-    }
-
-    res.status(StatusCodes.OK).json(userInfo);
+    // At this point, userExistsMiddleware has verified the user exists
+    // and attached the user info to req.userInfo
+    // isStreamer middleware has verified the user is a streamer
+    // and attached the streamer info to req.streamer
+    
+    return res.status(StatusCodes.OK).json({
+        userInfo: req.userInfo,
+        streamer: req.streamer
+    });
 }
 
 /**
@@ -69,28 +68,27 @@ export const getStreamerByUsername = async (req: Request, res: Response) => {
  * 
  * This function fetches all moderator records associated with the specified streamer
  * and returns them as a JSON response. It includes the user information for each moderator.
+ * The streamer's existence is already verified by previous middleware (userExistsMiddleware, isStreamer).
  * 
- * @param {Request} req - Express request object containing streamer information
+ * @param {Request} req - Express request object containing streamer information from middleware
  * @param {Response} res - Express response object
  * @returns {Promise<void>} - Asynchronous function that sends JSON response with moderators data
  * 
- * @throws {StatusCodes.BAD_REQUEST} - If streamer information is not provided
  * @throws {StatusCodes.INTERNAL_SERVER_ERROR} - If database query fails
  * 
  * @example
  * // Usage in a route definition:
- * router.get('/streamers/:username/moderators', userExists, isStreamer, getStreamerModerators);
+ * router.get('/streamers/:username/moderators', userExistsMiddleware, isStreamer, getStreamerModerators);
  */
 export const getStreamerModerators = async (req: Request, res: Response) => {
-    const streamerREQ = req.streamer || req.body.streamer;
-    if (!streamerREQ) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
-    }
-
+    // The middleware (userExistsMiddleware and isStreamer) has already validated
+    // that the streamer exists and attached it to req.streamer
+    const streamer = req.streamer;
+    
     try {
         const moderators = await prisma.streamModerators.findMany({
             where: {
-                streamerId: streamerREQ.streamerId,
+                streamerId: streamer.streamerId,
             },
             include: {
                 moderator: {
@@ -101,7 +99,6 @@ export const getStreamerModerators = async (req: Request, res: Response) => {
                             },
                         }
                     }
-
                 },
             }
         });
@@ -131,45 +128,26 @@ export const getStreamerModerators = async (req: Request, res: Response) => {
  * router.get('/streamers/:username/moderators/:modusername', userExists, isStreamer, getStreamerModeratorByUsername);
  */
 export const getStreamerModeratorByUsername = async (req: Request, res: Response) => {
-    const streamerREQ = req.streamer || req.body.streamer;
+    // The middleware (userExistsMiddleware, isStreamer, isModerator, isStreamerModerator) 
+    // has already validated that the streamer exists and attached it to req.streamer
+    // and validated the moderator username
 
-    const moderatorUsername = req.params.modusername || req.body.modusername;
-    if (!streamerREQ || !moderatorUsername) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+    // If we reach this point, moderator relationship exists and is in req.streamerModerator
+    if (req.isStreamerModerator && req.streamerModerator) {
+        return res.status(StatusCodes.OK).json(req.streamerModerator);
     }
 
-    try {
-        const moderator = await prisma.streamModerators.findFirst({
-            where: {
-                moderator: {
-                    user: {
-                        userInfo: {
-                            username: moderatorUsername,
-
-                        }
-                    }
-                },
-                streamerId: streamerREQ.streamerId,
-            },
-            include: {
-                moderator: {
-                    select: {
-                        user: {
-                            select: {
-                                userInfo: true,
-                            },
-                        }
-                    }
-
-                },
-            }
+    // If the moderator exists but is not assigned to this streamer
+    if (req.isModerator && !req.isStreamerModerator) {
+        return res.status(StatusCodes.NOT_FOUND).json({
+            message: `Moderator is not assigned to this streamer`
         });
-
-        res.status(StatusCodes.OK).json(moderator);
-    } catch (error) {
-        console.error('Error fetching moderators:', error);
-        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
     }
+
+    // This is a fallback in case middleware chain is incomplete
+    return res.status(StatusCodes.NOT_FOUND).json({
+        message: ReasonPhrases.NOT_FOUND
+    });
 }
 
 /**
@@ -229,6 +207,11 @@ export const addStreamerModerator = async (req: Request, res: Response) => {
             username: moderatorUsername,
         }
     })
+
+    if(!tempUser) {
+        console.log("There is no user called", moderatorUsername);
+        return res.status(StatusCodes.NOT_FOUND).json({ message: ReasonPhrases.NOT_FOUND });
+    }
 
     if (!isModerator && !moderator) {
         moderator = await prisma.moderators.create({

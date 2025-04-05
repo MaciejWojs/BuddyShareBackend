@@ -6,7 +6,7 @@ import { isStreamerModerator, isModerator } from '../middleware/isModerator';
 const router = Router({ mergeParams: true });
 
 router.get('/', StreamersController.getStreamerModerators);
-router.get('/:modusername', StreamersController.getStreamerModeratorByUsername);
+router.get('/:modusername',isModerator, isStreamerModerator, StreamersController.getStreamerModeratorByUsername);
 router.put('/:modusername', isModerator, isStreamerModerator, StreamersController.addStreamerModerator);
 router.delete('/:modusername', isModerator, isStreamerModerator, StreamersController.deleteStreamerModerator);
 
