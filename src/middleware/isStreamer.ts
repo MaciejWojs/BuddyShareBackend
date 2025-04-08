@@ -39,8 +39,8 @@ export const isStreamer = async (req: Request, res: Response, next: NextFunction
         }
         if (req.userInfo === undefined) {
             console.error("userExistsMiddleware not executed, navigating to", req.originalUrl); 
-
-            return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+            res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+            return 
         }
 
         // const user = await prisma.users.findUnique({

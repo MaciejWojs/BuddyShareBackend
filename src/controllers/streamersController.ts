@@ -56,8 +56,8 @@ export const getStreamerByUsername = async (req: Request, res: Response) => {
     // and attached the user info to req.userInfo
     // isStreamer middleware has verified the user is a streamer
     // and attached the streamer info to req.streamer
-    
-    return res.status(StatusCodes.OK).json({
+
+    res.status(StatusCodes.OK).json({
         userInfo: req.userInfo,
         streamer: req.streamer
     });
@@ -84,7 +84,7 @@ export const getStreamerModerators = async (req: Request, res: Response) => {
     // The middleware (userExistsMiddleware and isStreamer) has already validated
     // that the streamer exists and attached it to req.streamer
     const streamer = req.streamer;
-    
+
     try {
         const moderators = await prisma.streamModerators.findMany({
             where: {
@@ -134,20 +134,23 @@ export const getStreamerModeratorByUsername = async (req: Request, res: Response
     console.log("Atempting to get streamer moderator by username");
     // If we reach this point, moderator relationship exists and is in req.streamerModerator
     if (req.isStreamerModerator && req.streamerModerator) {
-        return res.status(StatusCodes.OK).json(req.streamerModerator);
+        res.status(StatusCodes.OK).json(req.streamerModerator);
+        return
     }
 
     // If the moderator exists but is not assigned to this streamer
     if (req.isModerator && !req.isStreamerModerator) {
-        return res.status(StatusCodes.NOT_FOUND).json({
+        res.status(StatusCodes.NOT_FOUND).json({
             message: `Moderator is not assigned to this streamer`
         });
+        return
     }
 
     // This is a fallback in case middleware chain is incomplete
-    return res.status(StatusCodes.NOT_FOUND).json({
+    res.status(StatusCodes.NOT_FOUND).json({
         message: ReasonPhrases.NOT_FOUND
     });
+    return
 }
 
 /**
@@ -180,27 +183,32 @@ export const addStreamerModerator = async (req: Request, res: Response) => {
 
     if (isStreamerModerator === undefined) {
         console.error("isStreamerModerator not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (isModerator === undefined) {
         console.error("isModerator not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (streamerREQ === undefined) {
         console.error("isStreamer not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (!streamerUsername || !moderatorUsername) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (streamerModerator && isStreamerModerator) {
         console.log("streamerModerator: ", streamerModerator);
         console.log("isStreamerModerator: ", isStreamerModerator);
         console.log(`${moderatorUsername} is already a ${streamerUsername} moderator`);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     const tempUser = await prisma.usersInfo.findUnique({
         where: {
@@ -208,9 +216,10 @@ export const addStreamerModerator = async (req: Request, res: Response) => {
         }
     })
 
-    if(!tempUser) {
+    if (!tempUser) {
         console.log("There is no user called", moderatorUsername);
-        return res.status(StatusCodes.NOT_FOUND).json({ message: ReasonPhrases.NOT_FOUND });
+        res.status(StatusCodes.NOT_FOUND).json({ message: ReasonPhrases.NOT_FOUND });
+        return 
     }
 
     if (!isModerator && !moderator) {
@@ -293,30 +302,36 @@ export const deleteStreamerModerator = async (req: Request, res: Response) => {
 
     if (isStreamerModerator === undefined) {
         console.error("isStreamerModerator not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (isModerator === undefined) {
         console.error("isModerator not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (streamerREQ === undefined) {
         console.error("isStreamer not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (!streamerUsername || !moderatorUsername) {
         console.log("streamer: ", streamerUsername);
         console.log("moderator: ", moderatorUsername);
         console.log("streamer or moderator username not found");
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (!isModerator && !moderator) {
         console.log(`${moderatorUsername} is not a moderator`);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (!streamerModerator && !isStreamerModerator) {
         console.log(`${moderatorUsername} is not a ${streamerUsername} moderator`);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (streamerModerator && isStreamerModerator) {
@@ -334,7 +349,8 @@ export const deleteStreamerModerator = async (req: Request, res: Response) => {
             console.log("MODERATOR-RECORD: ", moderatorRecord);
 
             if (!moderatorRecord) {
-                return res.status(StatusCodes.NOT_FOUND).json({ message: "Moderator record not found" });
+                res.status(StatusCodes.NOT_FOUND).json({ message: "Moderator record not found" });
+                return 
             }
 
             await prisma.streamModerators.delete({
@@ -361,7 +377,7 @@ export const deleteStreamerModerator = async (req: Request, res: Response) => {
             });
 
             console.log("MODERATORS-FINAL: ", moderators);
-            return res.status(StatusCodes.OK).json(moderators);
+            res.status(StatusCodes.OK).json(moderators);
         } catch (error) {
             console.error('Error deleting moderator:', error);
             res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });

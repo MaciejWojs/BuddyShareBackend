@@ -44,7 +44,8 @@ export const isModerator = async (req: Request, res: Response, next: NextFunctio
 
     if (!moderatorUsername) {
         console.log("moderator username not found");
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return;
     }
 
     try {
@@ -63,10 +64,12 @@ export const isModerator = async (req: Request, res: Response, next: NextFunctio
         next();
     } catch (error) {
         console.error(`Error checking if moderator exists: ${error}`);
-        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
             message: 'Error checking if moderator exists'
         });
+        return;
     }
+    next();
 }
 
 /**
@@ -92,7 +95,7 @@ export const isModerator = async (req: Request, res: Response, next: NextFunctio
  * router.delete('/stream/:streamerId/comment/:commentId', authenticate, isModerator, isStreamerModerator, moderationController.deleteComment);
  */
 export const isStreamerModerator = async (req: Request, res: Response, next: NextFunction) => {
-    console.log("isStreamerModerator middleware is being executed");
+    g("isStreamerModerator middleware is being executed");
     const streamer = req.streamer || req.body.streamer;
     const moderatorUsername = req.params.modusername || req.body.modusername;
 
@@ -101,7 +104,8 @@ export const isStreamerModerator = async (req: Request, res: Response, next: Nex
 
     if (!streamer || !moderatorUsername) {
         console.log("streamer or moderator username not found");
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return 
     }
 
     // If not a moderator, move to next middleware
@@ -131,11 +135,12 @@ export const isStreamerModerator = async (req: Request, res: Response, next: Nex
         req.isStreamerModerator = !!streamerModerator;
         if (req.isStreamerModerator) req.streamerModerator = streamerModerator;
 
-        next();
     } catch (error) {
         console.error(`Error checking streamer moderator status: ${error}`);
-        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
             message: 'Error checking streamer moderator status'
         });
+        return
     }
+    next();
 }
