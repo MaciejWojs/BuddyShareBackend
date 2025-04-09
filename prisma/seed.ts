@@ -123,6 +123,10 @@ async function main() {
         users = users.concat(randomUsers);
         streamer = faker.helpers.arrayElement(randomUsers);
         moderators = moderators.concat(faker.helpers.arrayElements(randomUsers, 3));
+
+        if(moderators.includes(streamer)){
+            moderators = moderators.pop(streamer);
+        }
     }
 
     // Seed użytkowników - każdy w osobnej transakcji
@@ -165,6 +169,8 @@ async function main() {
 
                 // Dodaj moderatorów
                 for (const mod of moderators) {
+
+
                     const modUser = await tx.usersInfo.findUnique({
                         where: { username: mod.username },
                         include: { user: true }

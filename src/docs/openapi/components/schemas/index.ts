@@ -399,5 +399,77 @@ export const components = {
                 }
             }
         }
+    },
+    FollowersResponse: {
+        type: 'object',
+        properties: {
+            success: {
+                type: 'boolean',
+                example: true
+            },
+            followers: {
+                type: 'array',
+                items: {
+                    $ref: '#/components/schemas/UserBriefInfo'
+                },
+                description: 'Array of users that follow the specified user'
+            }
+        }
+    },
+    FollowingResponse: {
+        type: 'object',
+        properties: {
+            success: {
+                type: 'boolean',
+                example: true
+            },
+            following: {
+                type: 'array',
+                items: {
+                    $ref: '#/components/schemas/UserBriefInfo'
+                },
+                description: 'Array of users that the specified user follows'
+            }
+        }
+    },
+    FollowCountResponse: {
+        type: 'object',
+        properties: {
+            success: {
+                type: 'boolean',
+                example: true
+            },
+            count: {
+                type: 'integer',
+                description: 'Number of followers or following',
+                example: 42
+            }
+        }
+    },
+    FollowUserResponse: {
+        type: 'object',
+        properties: {
+            success: {
+                type: 'boolean',
+                example: true
+            },
+            message: {
+                type: 'string',
+                example: 'Successfully followed user'
+            }
+        }
+    },
+    UnfollowUserResponse: {
+        type: 'object',
+        properties: {
+            success: {
+                type: 'boolean',
+                example: true
+            },
+            message: {
+                type: 'string',
+                example: 'Successfully unfollowed user'
+            }
+        }
     }
 };

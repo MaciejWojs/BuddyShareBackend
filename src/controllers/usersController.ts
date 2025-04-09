@@ -487,7 +487,202 @@ export const getUserSettings = async (req: Request, res: Response) => {
     }
 }
 
+export const getUserFollowers = async (req: Request, res: Response) => {
+    console.log("REQ.USERINFO: ", req.userInfo.user.userId);
+    try {
+        const followers = await prisma.followers.findMany({
+            where: {
+                followedUserId: req.userInfo.user.userId
+            }
+        });
+        res.status(StatusCodes.OK).json(followers);
+    }
+    catch (error: any) {
+        console.error(`Error fetching user followers: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
 
+export const getUserFollowing = async (req: Request, res: Response) => {
+
+    console.log("REQ.USERINFO: ", req.userInfo.user.userId);
+    try {
+        const following = await prisma.followers.findMany({
+            where: {
+                followerUserId: req.userInfo.user.userId
+            }
+        });
+        res.status(StatusCodes.OK).json(following);
+    }
+    catch (error: any) {
+        console.error(`Error fetching user following: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+export const getUserFollowersCount = async (req: Request, res: Response) => {
+    console.log("Getting followers count for user ID:", req.userInfo.user.userId);
+    try {
+        const followersCount = await prisma.followers.count({
+            where: {
+                followedUserId: req.userInfo.user.userId
+            }
+        });
+        res.status(StatusCodes.OK).json({ 
+            success: true,
+            count: followersCount 
+        });
+    }
+    catch (error: any) {
+        console.error(`Error fetching user followers count: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+export const getUserFollowingCount = async (req: Request, res: Response) => {
+    console.log("Getting following count for user ID:", req.userInfo.user.userId);
+    try {
+        const followingCount = await prisma.followers.count({
+            where: {
+                followerUserId: req.userInfo.user.userId
+            }
+        });
+        res.status(StatusCodes.OK).json({ 
+            success: true,
+            count: followingCount 
+        });
+    }
+    catch (error: any) {
+        console.error(`Error fetching user following count: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+export const followUser = async (req: Request, res: Response) => {
+    console.log("Attempting to follow user with ID:", req.userInfo.user.userId);
+    try {
+        const followerUserId = req.userInfoOld.user.userId;
+        const followedUserId  = req.userInfo.user.userId;
+        console.log("Attempting to follow user with ID:", followedUserId);
+
+        if (!followedUserId || !followerUserId) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: `${ReasonPhrases.BAD_REQUEST}`
+            });
+            return;
+        }
+
+        if (followerUserId === followedUserId) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'You cannot follow yourself'
+            });
+            return;
+        }
+        
+
+        await prisma.followers.create({
+            data: {
+                followerUserId: followerUserId,
+                followedUserId: followedUserId
+            }
+        });
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: `User with id: ${followerUserId} followed user with id: ${followedUserId} successfully`
+        });
+        console.log(`User with id: ${followerUserId} followed user with id: ${followedUserId} successfully`)
+    }
+    catch (error: any) {
+        console.error(`Error following user: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+
+}
+
+export const unfollowUser = async (req: Request, res: Response) => {
+    console.log("Attempting to unfollow user :", req.userInfo.user.userId);
+    try {
+        const followerUserId = req.userInfoOld?.user?.userId;
+        const followedUserId = req.userInfo?.user?.userId;
+        
+        // Validate both IDs exist
+        if (!followerUserId || !followedUserId) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'Missing user IDs required for unfollowing'
+            });
+            return;
+        }
+
+        // Check if users are the same
+        if (followerUserId === followedUserId) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'You cannot unfollow yourself'
+            });
+            return;
+        }
+
+        // Check if the follow relationship exists
+        const existingFollow = await prisma.followers.findUnique({
+            where: {
+                followerUserId_followedUserId: {
+                    followerUserId: followerUserId,
+                    followedUserId: followedUserId
+                }
+            }
+        });
+
+        if (!existingFollow) {
+            res.status(StatusCodes.NOT_FOUND).json({
+                success: false,
+                message: 'You are not following this user'
+            });
+            return;
+        }
+
+        await prisma.followers.delete({
+            where: {
+                followerUserId_followedUserId: {
+                    followerUserId: followerUserId,
+                    followedUserId: followedUserId
+                }
+            }
+        });
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: `User with id: ${followerUserId} unfollowed user with id: ${followedUserId} successfully`
+        });
+        console.log(`User with id: ${followerUserId} unfollowed user with id: ${followedUserId} successfully`);
+    }
+    catch (error: any) {
+        console.error(`Error unfollowing user: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+
+}
 
 // const deleteUser = async (userId: number) => {
 //     try {

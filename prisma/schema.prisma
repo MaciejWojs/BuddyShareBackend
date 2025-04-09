@@ -23,6 +23,9 @@ model Users {
   streamer  Streamers?  @relation("UserStreamer")
   moderator Moderators? @relation("UserModerator")
 
+  following Followers[] @relation("Follower")
+  followers Followers[] @relation("Followed")
+
   notifications Notifications[]
   subscribers   Subscribers[]
   chatMessages  ChatMessages[]
@@ -108,6 +111,7 @@ model UserSettings {
 model Streamers {
   streamerId Int @id @default(autoincrement()) @map("id")
   userId     Int @unique @map("user_id")
+  token     String @map("access_token")
 
   user        Users              @relation("UserStreamer", fields: [userId], references: [userId])
   streams     Streams[]
@@ -246,3 +250,17 @@ model Subscribers {
 
   @@map("subscribers")
 }
+
+model Followers {
+  followerId     Int @id @default(autoincrement()) @map("id")
+  followerUserId Int @map("follower_user_id")
+  followedUserId Int @map("followed_user_id")
+
+  // Relacje
+  follower  Users @relation("Follower", fields: [followerUserId], references: [userId])
+  followed  Users @relation("Followed", fields: [followedUserId], references: [userId])
+
+  @@unique([followerUserId, followedUserId]) // Unikalna kombinacja follower + followed
+  @@map("followers")
+}
+

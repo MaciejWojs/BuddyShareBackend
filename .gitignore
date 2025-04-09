@@ -179,3 +179,4 @@ dist
 src/*.json
 swagger-pl.json
 swagger-en.json
+.vscode

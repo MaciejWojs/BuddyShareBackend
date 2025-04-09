@@ -144,8 +144,11 @@ export const checkUserResourceOwnership = (req: Request, res: Response, next: Ne
         res.sendStatus(StatusCodes.UNAUTHORIZED);
         return;
     }
-    const requestUsername = req.userInfo.username;
+    const requestUsername =  (req.userInfoOld) ? req.userInfoOld.username : req.userInfo.username;
+
+
     const username = user.userInfo.username;
+
 
     if (requestUsername !== username) {
         console.error(`User [${username}] is trying to access ${requestUsername} resources`);

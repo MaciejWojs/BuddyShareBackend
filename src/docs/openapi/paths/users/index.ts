@@ -946,10 +946,189 @@ export const usersPathsEN = {
           description: 'List of followers',
           content: {
             'application/json': {
-              schema: {
-                type: 'array',
-                items: { $ref: '#/components/schemas/UserBriefInfo' }
-              }
+              schema: { $ref: '#/components/schemas/FollowersResponse' }
+            }
+          }
+        },
+        '404': {
+          description: 'User not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/followers/count': {
+    get: {
+      tags: ['Users'],
+      summary: 'Get user followers count',
+      description: 'Returns the number of users following the specified user',
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the user',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Number of followers',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FollowCountResponse' }
+            }
+          }
+        },
+        '404': {
+          description: 'User not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/followers/follow/{targetUsername}': {
+    post: {
+      tags: ['Users'],
+      summary: 'Follow a user',
+      description: 'Current user starts following another user',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the current user',
+          schema: {
+            type: 'string'
+          }
+        },
+        {
+          name: 'targetUsername',
+          in: 'path',
+          required: true,
+          description: 'Username of user to follow',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'User followed successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FollowResponse' }
+            }
+          }
+        },
+        '400': {
+          description: 'Bad request - already following or cannot follow yourself',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'User not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      tags: ['Users'],
+      summary: 'Unfollow a user',
+      description: 'Current user stops following another user',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the current user',
+          schema: {
+            type: 'string'
+          }
+        },
+        {
+          name: 'targetUsername',
+          in: 'path',
+          required: true,
+          description: 'Username of user to unfollow',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'User unfollowed successfully',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/UnfollowResponse' }
+            }
+          }
+        },
+        '400': {
+          description: 'Bad request - not following or cannot unfollow yourself',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
             }
           }
         },
@@ -993,10 +1172,51 @@ export const usersPathsEN = {
           description: 'List of followed users',
           content: {
             'application/json': {
-              schema: {
-                type: 'array',
-                items: { $ref: '#/components/schemas/UserBriefInfo' }
-              }
+              schema: { $ref: '#/components/schemas/FollowingResponse' }
+            }
+          }
+        },
+        '404': {
+          description: 'User not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/following/count': {
+    get: {
+      tags: ['Users'],
+      summary: 'Get count of users followed by user',
+      description: 'Returns the number of users the specified user is following',
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the user',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Number of followed users',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FollowCountResponse' }
             }
           }
         },
@@ -1969,57 +2189,7 @@ export const usersPathsPL = {
           description: 'Lista obserwujących',
           content: {
             'application/json': {
-              schema: {
-                type: 'array',
-                items: { $ref: '#/components/schemas/UserBriefInfo' }
-              }
-            }
-          }
-        },
-        '404': {
-          description: 'Nie znaleziono użytkownika',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '500': {
-          description: 'Wewnętrzny błąd serwera',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        }
-      }
-    }
-  },
-  '/users/{username}/following': {
-    get: {
-      tags: ['Użytkownicy'],
-      summary: 'Pobierz użytkowników obserwowanych przez użytkownika',
-      description: 'Zwraca listę użytkowników obserwowanych przez określonego użytkownika',
-      parameters: [
-        {
-          name: 'username',
-          in: 'path',
-          required: true,
-          description: 'Nazwa użytkownika',
-          schema: {
-            type: 'string'
-          }
-        }
-      ],
-      responses: {
-        '200': {
-          description: 'Lista obserwowanych użytkowników',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'array',
-                items: { $ref: '#/components/schemas/UserBriefInfo' }
-              }
+              schema: { $ref: '#/components/schemas/FollowersResponse' }
             }
           }
         },
