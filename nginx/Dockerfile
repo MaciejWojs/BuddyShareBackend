@@ -12,6 +12,7 @@ RUN mkdir -p /tmp/hls && \
 # Install necessary dependencies for building NGINX with the RTMP module
 RUN apk update && \
     apk add --no-cache \
+    gettext \
     ffmpeg \
     nginx \
     gcc \
@@ -74,12 +75,11 @@ RUN . /tmp/nginx_version.sh && \
 
 # Copy the nginx.conf with RTMP configuration
 COPY nginx.conf /etc/nginx/nginx.conf.template
-RUN envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf 
 
 COPY index.html /usr/share/nginx/html/index.html 
 
 # Expose RTMP and HTTP ports
 EXPOSE 1935 80 8080
 
-# Start NGINX
-CMD ["nginx", "-g", "daemon off;"]
+# Start NGINX with environment variables substitution
+CMD ["/bin/sh", "-c", "envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"]

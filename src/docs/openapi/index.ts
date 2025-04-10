@@ -3,6 +3,7 @@ import { authPathsEN, authPathsPL } from './paths/auth/';
 import { mediaPathsEN, mediaPathsPL } from './paths/media/index';
 import { usersPathsEN, usersPathsPL } from './paths/users/index';
 import { streamersPathsEN, streamersPathsPL } from './paths/streamers';
+import { streamsPathsEN, streamsPathsPL } from './paths/streams';
 
 
 /**
@@ -39,7 +40,8 @@ export function createOpenAPISpec(language: 'en' | 'pl' = 'en') {
       ...(isEnglish ? authPathsEN : authPathsPL),
       ...(isEnglish ? mediaPathsEN : mediaPathsPL),
       ...(isEnglish ? usersPathsEN : usersPathsPL),
-      ...(isEnglish ? streamersPathsEN : streamersPathsPL)
+      ...(isEnglish ? streamersPathsEN : streamersPathsPL),
+      ...(isEnglish ? streamsPathsEN : streamsPathsPL)
     },
     components: {
       schemas: components,
