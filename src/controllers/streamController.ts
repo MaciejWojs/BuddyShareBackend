@@ -4,16 +4,7 @@ import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import axios from 'axios';
 
 const prisma = new PrismaClient();
-const host = process.env.NGINX_HOST || "http://localhost:8080/api";
-
-declare global {
-    namespace Express {
-        interface Request {
-            token: string | null;
-        }
-    }
-}
-
+const host = process.env.STREAM_HOST || "http://nginx:8080/api";
 
 export const getAllStreams = async (_req: Request, res: Response) => {
     const endpoint = `${host}/streams`;

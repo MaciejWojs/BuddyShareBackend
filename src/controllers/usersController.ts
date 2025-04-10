@@ -442,10 +442,24 @@ export const getUserProfile = async (req: Request, res: Response) => {
 
 export const getUserFollowers = async (req: Request, res: Response) => {
     console.log("REQ.USERINFO: ", req.userInfo.user.userId);
+    
     try {
         const followers = await prisma.followers.findMany({
             where: {
-                followedUserId: req.userInfo.user.userId
+            followedUserId: req.userInfo.user.userId
+            },
+            include: {
+            follower: {  // Changed from 'followed' to 'follower'
+                select: {
+                userInfo: {
+                    select: {
+                    username: true,
+                    // description: true,
+                    profilePicture: true,
+                    }
+                }
+                }
+            }
             }
         });
         res.status(StatusCodes.OK).json(followers);
@@ -464,8 +478,22 @@ export const getUserFollowing = async (req: Request, res: Response) => {
     console.log("REQ.USERINFO: ", req.userInfo.user.userId);
     try {
         const following = await prisma.followers.findMany({
-            where: {
+                where: {
                 followerUserId: req.userInfo.user.userId
+            },
+            include: {
+                followed: {
+                    select: {
+                        userInfo: {
+                            select: {
+                                username: true,
+                                // description: true,
+                                profilePicture: true,
+                                
+                            }
+                        }
+                    }
+                }
             }
         });
         res.status(StatusCodes.OK).json(following);
