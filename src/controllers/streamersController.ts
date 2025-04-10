@@ -24,14 +24,18 @@ export const getAllStreamers = async (req: Request, res: Response) => {
     try {
         
         const streamers = await prisma.streamers.findMany({
-            include: {
+            select: {
+                streamerId: true,
+                userId: true,
+                // Celowo pomijamy pole token
                 user: {
-                    select: { userInfo: true, },
+                    select: { 
+                        userInfo: true,
+                    },
                 },
-                token: false,
             },
         });
-        const {token, ...streamersWithoutToken} = streamers[0];
+
         res.status(StatusCodes.OK).json(streamers);
     } catch (error) {
         console.error('Error fetching streamers:', error);

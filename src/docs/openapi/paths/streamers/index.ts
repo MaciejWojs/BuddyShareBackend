@@ -455,9 +455,7 @@ export const streamersPathsEN = {
           }
         }
       }
-    }
-  },
-  '/streamers/{username}/token': {
+    },
     patch: {
       tags: ['Streamers'],
       summary: 'Update streamer token',
@@ -989,9 +987,7 @@ export const streamersPathsPL = {
           }
         }
       }
-    }
-  },
-  '/streamers/{username}/token': {
+    },
     patch: {
       tags: ['Streamerzy'],
       summary: 'Zaktualizuj token streamera',
