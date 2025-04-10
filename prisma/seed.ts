@@ -186,7 +186,7 @@ async function main() {
                 }
 
                 // Generuj token dostępu dla streamera
-                const accessToken = faker.string.alphanumeric(32);
+                const accessToken = require('crypto').randomBytes(64).toString('hex');
 
                 // Utwórz lub zaktualizuj streamera
                 const streamerData = await tx.streamers.upsert({

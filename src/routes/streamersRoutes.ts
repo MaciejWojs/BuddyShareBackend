@@ -10,6 +10,10 @@ const router = Router({ mergeParams: true }); // Dodaj mergeParams: true
 router.get('/',  authenticate, isAdmin, StreamersController.getAllStreamers);
 
 router.get('/:username', userExistsMiddleware, isStreamer, StreamersController.getStreamerByUsername);
+
+router.get('/:username/token', userExistsMiddleware, isStreamer, checkUserResourceOwnership,  StreamersController.getStreamerToken);
+
+router.patch('/:username/token',userExistsMiddleware, isStreamer,   StreamersController.updateStreamerToken);
 // router.get('/:username/moderators', authenticate, userExistsMiddleware, isStreamer, StreamersController.getStreamerModerators);
 
 // router.get('/:username/moderators/:modusername', authenticate, userExistsMiddleware, isStreamer, StreamersController.getStreamerModerators);

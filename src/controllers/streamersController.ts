@@ -22,14 +22,16 @@ const prisma = new PrismaClient();
  */
 export const getAllStreamers = async (req: Request, res: Response) => {
     try {
+        
         const streamers = await prisma.streamers.findMany({
             include: {
                 user: {
                     select: { userInfo: true, },
                 },
+                token: false,
             },
         });
-
+        const {token, ...streamersWithoutToken} = streamers[0];
         res.status(StatusCodes.OK).json(streamers);
     } catch (error) {
         console.error('Error fetching streamers:', error);
@@ -383,4 +385,57 @@ export const deleteStreamerModerator = async (req: Request, res: Response) => {
             res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
         }
     }
+}
+
+/**
+ * Fetches the token for a streamer.
+ * 
+ * This controller function retrieves the token associated with the authenticated 
+ * streamer from the request object and returns it in the response.
+ *
+ * @param {Request} req - The Express request object containing user and streamer information.
+ * @param {Response} res - The Express response object used to send the token back to the client.
+ * @returns {void}
+ *
+ * @remarks
+ * Expects the streamer token to be available in `req.streamer.token` and user information in `req.userInfo`.
+ * Returns a JSON object with the token and a 200 OK status code.
+ */
+export const getStreamerToken = async (req: Request, res: Response) => {
+
+
+    console.log("Getting streamer token for", req.userInfo.username);
+    res.status(StatusCodes.OK).json({
+        token: req.streamer.token,
+    });
+    
+
+
+    return;
+}
+
+export const updateStreamerToken = async (req: Request, res: Response) => {
+console.log("Updating streamer token for", req.userInfo.username);
+    const streamer = req.streamer;
+    const updatedToken = require('crypto').randomBytes(64).toString('hex');
+
+    try {
+        const updatedStreamer = await prisma.streamers.update({
+            where: {
+                streamerId: streamer.streamerId,
+            },
+            data: {
+                token: updatedToken,
+            },
+        });
+
+        res.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            token: updatedToken,
+        });
+    } catch (error) {
+        console.error('Error updating streamer token:', error);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+    }
+    return;
 }
