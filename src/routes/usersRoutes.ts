@@ -16,7 +16,7 @@ router.get('/:username/role', authenticate, isAdmin, userExistsMiddleware, UserC
 router.use('/:username/settings', authenticate, userExistsMiddleware, checkUserResourceOwnership)
 // router.patch('/:username/settings/:id', authenticate, userExistsMiddleware, UserController.updateUserSetting)
 // router.patch('/:username/settings', authenticate, userExistsMiddleware, UserController.updateUserSettings)
-router.get('/:username/profile', authenticate, userExistsMiddleware, checkUserResourceOwnership, UserController.getUserProfile)
+router.get('/:username/profile', userExistsMiddleware, UserController.getUserProfile)
 
 // router.get('/:username/followers', userExistsMiddleware, UserController.getUserFollowers)
 // router.get('/:username/following', userExistsMiddleware, UserController.getUserFollowing)
