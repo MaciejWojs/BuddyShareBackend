@@ -103,7 +103,8 @@ app.get('/api-docs', (req, res) => {
 // Routery,
 app.use('/streamers', Routes.streamersRoutes);
 app.use('/auth', Routes.authRoutes);
-app.use('/media', Routes.streamRoutes);
+// app.use('/media', Routes.streamRoutes);
 app.use('/users', Routes.userRoutes);
+app.use('/streams', Routes.streamsRoutes);
 
 export default app;

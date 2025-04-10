@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { authenticate, isAdmin, checkUserResourceOwnership } from '../middleware/authenticate';
 import * as UserController from '../controllers/usersController';
 import { userExistsMiddleware } from '../middleware/userExist';
-import followingRoutes from './followingRoutes';
-import followerRoutes from './followerRoutes';
+import followingRoutes from './subroutes/followingRoutes';
+import followerRoutes from './subroutes/followerRoutes';
 const router = Router();
 
 router.get('/', authenticate, isAdmin, UserController.getAllUsersInfo)
@@ -13,7 +13,7 @@ router.patch('/:username/ban', authenticate, isAdmin, userExistsMiddleware, User
 router.patch('/:username/unban', authenticate, isAdmin, userExistsMiddleware, UserController.unbanUser)
 router.patch('/:username/role', authenticate, isAdmin, userExistsMiddleware, UserController.changeUsersRole)
 router.get('/:username/role', authenticate, isAdmin, userExistsMiddleware, UserController.getUserRole)
-router.get('/:username/settings', authenticate, userExistsMiddleware, checkUserResourceOwnership, UserController.getUserSettings)
+router.use('/:username/settings', authenticate, userExistsMiddleware, checkUserResourceOwnership)
 // router.patch('/:username/settings/:id', authenticate, userExistsMiddleware, UserController.updateUserSetting)
 // router.patch('/:username/settings', authenticate, userExistsMiddleware, UserController.updateUserSettings)
 router.get('/:username/profile', authenticate, userExistsMiddleware, checkUserResourceOwnership, UserController.getUserProfile)

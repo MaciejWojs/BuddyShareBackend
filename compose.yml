@@ -12,9 +12,10 @@ services:
       - "5432:5432"
     networks:
       - backend
+
   app:
     image: buddy-share-back:latest
-    container_name: buddy-share-back-db
+    container_name: backend
     restart: unless-stopped
     depends_on:
       - db
@@ -31,11 +32,25 @@ services:
       COOKIE_SECRET: ${COOKIE_SECRET}    
     ports:
       - "5000:5000"
-      - "1935:1935"
+      # - "1935:1935"
       - "8000:8000"
     networks:
       - backend
 
+  nginx:
+    image: nginx-rtmp
+    container_name: nginx-rtmp
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      HOST: app
+    ports:
+      - "1935:1935"
+      - "8080:8080"
+      - "80:80"
+    networks:
+      - backend
 
 networks:
   backend:

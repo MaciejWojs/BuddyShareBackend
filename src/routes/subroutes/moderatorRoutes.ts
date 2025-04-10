@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { authenticate, isAdmin, checkUserResourceOwnership } from '../middleware/authenticate';
-import { userExistsMiddleware } from '../middleware/userExist';
-import * as StreamersController from '../controllers/streamersController';
-import { isStreamerModerator, isModerator } from '../middleware/isModerator';
+import { authenticate, isAdmin, checkUserResourceOwnership } from '../../middleware/authenticate';
+import { userExistsMiddleware } from '../../middleware/userExist';
+import * as StreamersController from '../../controllers/streamersController';
+import { isStreamerModerator, isModerator } from '../../middleware/isModerator';
 const router = Router({ mergeParams: true });
 
 router.get('/', StreamersController.getStreamerModerators);

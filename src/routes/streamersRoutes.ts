@@ -4,13 +4,12 @@ import { userExistsMiddleware } from '../middleware/userExist';
 import * as StreamersController from '../controllers/streamersController';
 import { isStreamer } from '../middleware/isStreamer';
 import {isStreamerModerator, isModerator } from '../middleware/isModerator';
-import moderatorRoutes from './moderatorRoutes';
+import moderatorRoutes from './subroutes/moderatorRoutes';
 const router = Router({ mergeParams: true }); // Dodaj mergeParams: true
 
 router.get('/',  authenticate, isAdmin, StreamersController.getAllStreamers);
 
 router.get('/:username', userExistsMiddleware, isStreamer, StreamersController.getStreamerByUsername);
-
 // router.get('/:username/moderators', authenticate, userExistsMiddleware, isStreamer, StreamersController.getStreamerModerators);
 
 // router.get('/:username/moderators/:modusername', authenticate, userExistsMiddleware, isStreamer, StreamersController.getStreamerModerators);

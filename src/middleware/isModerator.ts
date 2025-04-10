@@ -10,6 +10,7 @@ declare global {
             moderator?: any;
             isStreamerModerator?: boolean;
             streamer?: any;
+            streamerModerator?: any;
         }
     }
 }
@@ -95,7 +96,7 @@ export const isModerator = async (req: Request, res: Response, next: NextFunctio
  * router.delete('/stream/:streamerId/comment/:commentId', authenticate, isModerator, isStreamerModerator, moderationController.deleteComment);
  */
 export const isStreamerModerator = async (req: Request, res: Response, next: NextFunction) => {
-    g("isStreamerModerator middleware is being executed");
+    console.log("isStreamerModerator middleware is being executed");
     const streamer = req.streamer || req.body.streamer;
     const moderatorUsername = req.params.modusername || req.body.modusername;
 
