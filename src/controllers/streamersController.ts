@@ -59,9 +59,12 @@ export const getStreamerByUsername = async (req: Request, res: Response) => {
     // isStreamer middleware has verified the user is a streamer
     // and attached the streamer info to req.streamer
 
+    // Create a new object without the token
+    const { token, ...streamerWithoutToken } = req.streamer;
+
     res.status(StatusCodes.OK).json({
         userInfo: req.userInfo,
-        streamer: req.streamer
+        streamer: streamerWithoutToken
     });
 }
 
