@@ -4,7 +4,16 @@ import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import axios from 'axios';
 
 const prisma = new PrismaClient();
-const host = process.env.STREAM_HOST || "http://localhost:8080/api";
+const host = process.env.NGINX_HOST || "http://localhost:8080/api";
+
+declare global {
+    namespace Express {
+        interface Request {
+            token: string | null;
+        }
+    }
+}
+
 
 export const getAllStreams = async (_req: Request, res: Response) => {
     const endpoint = `${host}/streams`;
@@ -66,13 +75,16 @@ const transformStreamsData = (data: any) => {
 };
 
 export const notifyStreamStart = async (req: Request, res: Response) => {
-    console.log('Stream started:');
+    console.log('notifyStreamStart endpoint hit');
+    console.log(`${req.streamer.user.userInfo.username} started streaming ▶️`);
     res.sendStatus(StatusCodes.OK);
     return;
 }
 
 export const notifyStreamEnd = async (req: Request, res: Response) => {
-    console.log('Stream ended:');
+    console.log('notifyStreamEnd endpoint hit');
+    console.log(`${req.streamer.user.userInfo.username} finished streaming. ⏹️`);
+
     res.sendStatus(StatusCodes.OK);
     return;
 }

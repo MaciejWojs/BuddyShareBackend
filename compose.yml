@@ -29,7 +29,8 @@ services:
       PORT: ${PORT}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      COOKIE_SECRET: ${COOKIE_SECRET}    
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      NGINX_HOST: nginx
     ports:
       - "5000:5000"
       # - "1935:1935"

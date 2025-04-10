@@ -111,7 +111,7 @@ model UserSettings {
 model Streamers {
   streamerId Int @id @default(autoincrement()) @map("id")
   userId     Int @unique @map("user_id")
-  token     String @map("access_token")
+  token     String @unique @map("access_token")
 
   user        Users              @relation("UserStreamer", fields: [userId], references: [userId])
   streams     Streams[]

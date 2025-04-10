@@ -79,46 +79,46 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction): void =
     next();
 }
 
-/**
- * Middleware that verifies if the authenticated user is a registered streamer
- * 
- * This middleware checks the database to confirm whether the current user 
- * has a record in the streamers table, indicating they have streamer status.
- * 
- * @param {Request} req - Express request object containing the authenticated user
- * @param {Response} res - Express response object
- * @param {NextFunction} next - Express next function
- * @returns {Promise<void>} - Asynchronous function that calls next() if authorized
- * 
- * @throws {StatusCodes.UNAUTHORIZED} - If no user is authenticated
- * @throws {StatusCodes.FORBIDDEN} - If user is not registered as a streamer
- * 
- * @example
- * // Usage in a route definition:
- * router.post('/stream', authenticate, isStreamer, streamController.startStream);
- */
-export const isStreamer = async (req: Request, res: Response, next: NextFunction) => {
-    const user = req.user;
-    if (!user) {
-        console.error("User not found");
-        res.sendStatus(StatusCodes.UNAUTHORIZED);
-        return;
-    }
+// /**
+//  * Middleware that verifies if the authenticated user is a registered streamer
+//  * 
+//  * This middleware checks the database to confirm whether the current user 
+//  * has a record in the streamers table, indicating they have streamer status.
+//  * 
+//  * @param {Request} req - Express request object containing the authenticated user
+//  * @param {Response} res - Express response object
+//  * @param {NextFunction} next - Express next function
+//  * @returns {Promise<void>} - Asynchronous function that calls next() if authorized
+//  * 
+//  * @throws {StatusCodes.UNAUTHORIZED} - If no user is authenticated
+//  * @throws {StatusCodes.FORBIDDEN} - If user is not registered as a streamer
+//  * 
+//  * @example
+//  * // Usage in a route definition:
+//  * router.post('/stream', authenticate, isStreamer, streamController.startStream);
+//  */
+// export const isStreamer = async (req: Request, res: Response, next: NextFunction) => {
+//     const user = req.user;
+//     if (!user) {
+//         console.error("User not found");
+//         res.sendStatus(StatusCodes.UNAUTHORIZED);
+//         return;
+//     }
 
-    const isStreamer = await prisma.streamers.findUnique({
-        where: {
-            userId: user.userId
-        }
-    });
+//     const isStreamer = await prisma.streamers.findUnique({
+//         where: {
+//             userId: user.userId
+//         }
+//     });
 
-    if (!isStreamer) {
-        console.error("User is not a streamer");
-        res.sendStatus(StatusCodes.FORBIDDEN);
-        return;
-    }
+//     if (!isStreamer) {
+//         console.error("User is not a streamer");
+//         res.sendStatus(StatusCodes.FORBIDDEN);
+//         return;
+//     }
 
-    next();
-}
+//     next();
+// }
 
 
 /**
