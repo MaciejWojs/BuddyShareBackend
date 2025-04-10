@@ -390,6 +390,14 @@ export const components = {
             moderator: {
                 type: 'object',
                 properties: {
+                    moderatorId: {
+                        type: 'integer',
+                        description: 'Moderator identifier'
+                    },
+                    userId: {
+                        type: 'integer',
+                        description: 'User identifier'
+                    },
                     user: {
                         type: 'object',
                         properties: {

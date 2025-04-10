@@ -1,3 +1,5 @@
+import { userSettingsPathsEN, userSettingsPathsPL } from './settings';
+
 export const usersPathsEN = {
   '/users/{username}': {
     get: {

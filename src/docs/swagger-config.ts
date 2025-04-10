@@ -5,6 +5,7 @@ import { mediaPathsEN, mediaPathsPL } from './openapi/paths/media/index';
 import { usersPathsEN, usersPathsPL } from './openapi/paths/users/index';
 import { streamersPathsEN, streamersPathsPL } from './openapi/paths/streamers/index';
 import { streamsPathsEN, streamsPathsPL } from './openapi/paths/streams/index';
+import { moderatorsPathsEN, moderatorsPathsPL } from './openapi/paths/moderators/index';
 
 export function createSwaggerSpec(language: 'en' | 'pl' = 'en'): object {
   const isEnglish = language === 'en';
@@ -52,7 +53,8 @@ export function createSwaggerSpec(language: 'en' | 'pl' = 'en'): object {
     ...(isEnglish ? mediaPathsEN : mediaPathsPL),
     ...(isEnglish ? usersPathsEN : usersPathsPL),
     ...(isEnglish ? streamersPathsEN : streamersPathsPL),
-    ...(isEnglish ? streamsPathsEN : streamsPathsPL)
+    ...(isEnglish ? streamsPathsEN : streamsPathsPL),
+    ...(isEnglish ? moderatorsPathsEN : moderatorsPathsPL)
   };
   
   return swaggerSpec;
