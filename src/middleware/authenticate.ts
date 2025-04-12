@@ -16,12 +16,18 @@ const prisma = new PrismaClient();
  * @returns {void}
  */
 export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
+    console.log("Authenticate middleware is being executed");
     const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 
     if (!JWT_ACCESS_SECRET) {
         console.error("JWT_ACCESS_SECRET is not defined");
         res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: "JWT" });
         return;
+    }
+
+    if (req.newAccessToken) {
+        console.warn("New access token generated, skipping authentication middleware");
+        return next(); 
     }
 
     const token = req.signedCookies['JWT'];
@@ -39,7 +45,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
             res.sendStatus(StatusCodes.UNAUTHORIZED);
             return;
         }
-        console.log("User authenticated:", user.username);
+        console.log("User authenticated:", user.userInfo.username);
         console.log("User data:", user);
         req.user = user;
         next();
@@ -63,6 +69,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
  * router.get('/admin-only', isAuthenticated, isAdmin, adminController.doSomething);
  */
 export const isAdmin = (req: Request, res: Response, next: NextFunction): void => {
+    console.log("isAdmin middleware is being executed");
     const user = req.user;
     if (!user) {
         console.error("User not found");
@@ -137,24 +144,143 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction): void =
  * @throws {StatusCodes.UNAUTHORIZED} - If no user is authenticated
  * @throws {StatusCodes.FORBIDDEN} - If username in request doesn't match authenticated user
  */
-export const checkUserResourceOwnership = (req: Request, res: Response, next: NextFunction) => {
+export const checkUserResourceOwnership = (req: Request, res: Response, next: NextFunction): void => {
+    console.log("checkUserResourceOwnership middleware is being executed");
     const user = req.user;
+
     if (!user) {
-        console.error("User not found");
-        res.sendStatus(StatusCodes.UNAUTHORIZED);
+        console.error("User not authenticated");
+        res.status(StatusCodes.UNAUTHORIZED).json({
+            success: false,
+            message: "Authentication required to access this resource"
+        });
         return;
     }
-    const requestUsername =  (req.userInfoOld) ? req.userInfoOld.username : req.userInfo.username;
 
+    // Get the requested username from request, handling both property formats
+    const requestUsername = req.userInfo?.username || req.userInfoOld?.username;
+    const authenticatedUsername = user.userInfo.username;
 
-    const username = user.userInfo.username;
+    if (!requestUsername) {
+        console.error("Request is missing username information");
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: "Username information is missing from request"
+        });
+        return;
+    }
 
-
-    if (requestUsername !== username) {
-        console.error(`User [${username}] is trying to access ${requestUsername} resources`);
-        res.sendStatus(StatusCodes.FORBIDDEN);
+    if (requestUsername !== authenticatedUsername) {
+        console.error(`Access denied: User '${authenticatedUsername}' attempted to access resources of user '${requestUsername}'`);
+        res.status(StatusCodes.FORBIDDEN).json({
+            success: false,
+            message: "You don't have permission to access this resource"
+        });
         return;
     }
 
     next();
 }
+
+/**
+ * Middleware that attempts to refresh the access token when it's expired
+ * 
+ * This middleware runs before authenticate to try to refresh an expired token
+ * automatically, providing a seamless user experience.
+ * 
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>}
+ */
+export const tokenRefresher = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    console.log("Token refresher middleware is being executed");
+    const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+    const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+    if (!JWT_ACCESS_SECRET || !JWT_REFRESH_SECRET) {
+        console.error("JWT secrets are not defined");
+        return next();
+    }
+
+    const accessToken = req.signedCookies['JWT'];
+    const refreshToken = req.signedCookies['refresh_token'];
+
+    // Jeśli nie ma żadnych tokenów, przejdź dalej (authenticate zajmie się resztą)
+    if (!accessToken || !refreshToken) {
+        return next();
+    }
+
+    try {
+        // Próba weryfikacji access tokena
+        jwt.verify(accessToken, JWT_ACCESS_SECRET);
+        return next(); // Token jest poprawny, kontynuuj
+    } catch (error) {
+        // Jeśli token wygasł (i tylko wtedy), spróbuj odświeżyć
+        if (error instanceof jwt.TokenExpiredError) {
+            console.error("Access token expired, trying to refresh...");
+            try {
+                // Najpierw zweryfikuj refresh token
+                const decodedRefreshToken = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as {
+                    userId: number;
+                    tokenVersion: number;
+                };
+
+                // Sprawdź czy token istnieje w bazie danych i nie jest unieważniony
+                const tokenRecord = await prisma.refreshToken.findFirst({
+                    where: {
+                        token: refreshToken,
+                        invalidated: false,
+                        userId: decodedRefreshToken.userId
+                    }
+                });
+
+                if (!tokenRecord || new Date() > tokenRecord.expiresAt) {
+                    return next(); // Token nieprawidłowy lub wygasły
+                }
+
+                // Pobierz dane użytkownika
+                const user = await prisma.users.findUnique({
+                    where: { userId: decodedRefreshToken.userId },
+                    include: {
+                        userInfo: true,
+                        userSettings: {
+                            select: {
+                                userSettingsId: true,
+                                notificationsEnabled: true,
+                                darkMode: true,
+                            }
+                        }
+                    }
+                });
+
+                if (!user) {
+                    return next();
+                }
+
+                // Generuj nowy access token
+                const newAccessToken = jwt.sign(user, JWT_ACCESS_SECRET, { expiresIn: "15m" });
+
+                // Ustaw nowy access token
+                res.cookie('JWT', newAccessToken, {
+                    signed: true,
+                    httpOnly: true,
+                    secure: true,
+                    maxAge: 15 * 60 * 1000 // 15 minut
+                });
+
+                // Zmodyfikuj obiekt żądania, aby zawierał dane użytkownika
+                req.user = user;
+                req.newAccessToken = newAccessToken;
+
+                return next();
+            } catch (err) {
+                console.error("Error refreshing token automatically:", err);
+                return next();
+            }
+        } else {
+            // Inny błąd weryfikacji tokena
+            return next();
+        }
+    }
+};

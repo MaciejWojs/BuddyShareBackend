@@ -19,34 +19,23 @@ const prisma = new PrismaClient();
  * router.get('/settings', authenticate, getUserSettings);
  */
 export const getUserSettings = async (req: Request, res: Response) => {
+    console.log("getUserSettings endpoint reached");
     try {
-        const user = await prisma.users.findUnique({
-            where: {
-                userSettingsId: req.userInfo.userInfoId
-            }
-        });
-        const userSettings = await prisma.userSettings.findUnique({
-            where: {
-                userSettingsId: user?.userSettingsId
-            }
-        });
-        if (!userSettings) {
-            res.status(StatusCodes.NOT_FOUND).json({
-                success: false,
-                message: 'User settings not found'
-            });
-            return;
-        }
-        const { passwordHash, ...userSettingsWithoutPassword } = userSettings;
-        res.status(StatusCodes.OK).json({
-            ...userSettingsWithoutPassword
-        });
+        const settings = req.user?.userSettings;
+        console.log("user settings", settings);
+        res.status(StatusCodes.OK).json(
+            
+            // ...userSettingsWithoutPassword
+            settings
+        );
+        return;
     } catch (error: any) {
         console.error(`Error fetching user settings: ${error}`);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
             success: false,
             message: 'Error fetching user settings'
         });
+        return;
     }
 }
 

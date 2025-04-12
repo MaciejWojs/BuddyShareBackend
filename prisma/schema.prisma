@@ -29,6 +29,7 @@ model Users {
   notifications Notifications[]
   subscribers   Subscribers[]
   chatMessages  ChatMessages[]
+  refreshTokens RefreshToken[]
   // userPermissions UserPermissions[]
 
   @@map("users")
@@ -61,6 +62,19 @@ model UserSettings {
   user Users? @relation("User_UserSettings")
 
   @@map("user_settings")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  userId      Int      @map("user_id")
+  expiresAt   DateTime @map("expires_at")
+  issuedAt    DateTime @default(now()) @map("issued_at")
+  invalidated Boolean  @default(false)
+
+  user Users @relation(fields: [userId], references: [userId])
+
+  @@map("refresh_tokens")
 }
 
 // model UserRoles {
@@ -109,9 +123,9 @@ model UserSettings {
 // }
 
 model Streamers {
-  streamerId Int @id @default(autoincrement()) @map("id")
-  userId     Int @unique @map("user_id")
-  token     String @unique @map("access_token")
+  streamerId Int    @id @default(autoincrement()) @map("id")
+  userId     Int    @unique @map("user_id")
+  token      String @unique @map("access_token")
 
   user        Users              @relation("UserStreamer", fields: [userId], references: [userId])
   streams     Streams[]
@@ -257,10 +271,9 @@ model Followers {
   followedUserId Int @map("followed_user_id")
 
   // Relacje
-  follower  Users @relation("Follower", fields: [followerUserId], references: [userId])
-  followed  Users @relation("Followed", fields: [followedUserId], references: [userId])
+  follower Users @relation("Follower", fields: [followerUserId], references: [userId])
+  followed Users @relation("Followed", fields: [followedUserId], references: [userId])
 
   @@unique([followerUserId, followedUserId]) // Unikalna kombinacja follower + followed
   @@map("followers")
 }
-

@@ -17,12 +17,13 @@ declare global {
                     updatedAt: string | Date;
                     userRole: Role;
                 };
-                settings?: {
+                userSettings?: {
                     notificationsEnabled: boolean;
                     darkMode: boolean;
                 };
             };
             swaggerDoc?: any;
+            newAccessToken?: string;
         }
     }
 }

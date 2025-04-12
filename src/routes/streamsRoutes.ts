@@ -5,7 +5,10 @@ import { hasStreamerToken, isValidStreamerToken } from '../middleware/isStreamer
 const router = Router();
 
 router.get('/', Streams.getAllStreams);
-router.get('/notify/start', hasStreamerToken, isValidStreamerToken, Streams.notifyStreamStart);
-router.get('/notify/end', hasStreamerToken, isValidStreamerToken, Streams.notifyStreamEnd);
+
+router.use('/notify', hasStreamerToken, isValidStreamerToken);
+
+router.get('/notify/start', Streams.notifyStreamStart);
+router.get('/notify/end', Streams.notifyStreamEnd);
 
 export default router;

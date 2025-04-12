@@ -4,27 +4,34 @@ import * as UserController from '../controllers/usersController';
 import { userExistsMiddleware } from '../middleware/userExist';
 import followingRoutes from './subroutes/followingRoutes';
 import followerRoutes from './subroutes/followerRoutes';
+import userSettingsRoutes from './subroutes/userSettingsRoutes';
+
 const router = Router();
 
 router.get('/', authenticate, isAdmin, UserController.getAllUsersInfo)
 router.get('/brief', authenticate, isAdmin, UserController.getAllUsers)
-router.get('/:username', userExistsMiddleware, UserController.exists)
-router.patch('/:username/ban', authenticate, isAdmin, userExistsMiddleware, UserController.banUser)
-router.patch('/:username/unban', authenticate, isAdmin, userExistsMiddleware, UserController.unbanUser)
-router.patch('/:username/role', authenticate, isAdmin, userExistsMiddleware, UserController.changeUsersRole)
-router.get('/:username/role', authenticate, isAdmin, userExistsMiddleware, UserController.getUserRole)
-router.use('/:username/settings', authenticate, userExistsMiddleware, checkUserResourceOwnership)
-// router.patch('/:username/settings/:id', authenticate, userExistsMiddleware, UserController.updateUserSetting)
-// router.patch('/:username/settings', authenticate, userExistsMiddleware, UserController.updateUserSettings)
-router.get('/:username/profile', userExistsMiddleware, UserController.getUserProfile)
 
-// router.get('/:username/followers', userExistsMiddleware, UserController.getUserFollowers)
-// router.get('/:username/following', userExistsMiddleware, UserController.getUserFollowing)
-// router.get('/:username/followers/count', userExistsMiddleware, UserController.getUserFollowersCount)
-// router.get('/:username/following/count', userExistsMiddleware, UserController.getUserFollowingCount)
+router.use('/:username', userExistsMiddleware)
 
-router.use('/:username/followers', userExistsMiddleware, followerRoutes)
-router.use('/:username/following', userExistsMiddleware, followingRoutes)
+router.get('/:username', UserController.exists)
+router.patch('/:username/ban', authenticate, isAdmin, UserController.banUser)
+router.patch('/:username/unban', authenticate, isAdmin, UserController.unbanUser)
+router.patch('/:username/role', authenticate, isAdmin, UserController.changeUsersRole)
+router.get('/:username/role', authenticate, isAdmin, UserController.getUserRole)
+
+router.use('/:username/settings', authenticate, checkUserResourceOwnership, userSettingsRoutes)
+
+// router.patch('/:username/settings/:id', authenticate,  UserController.updateUserSetting)
+// router.patch('/:username/settings', authenticate,  UserController.updateUserSettings)
+router.get('/:username/profile', UserController.getUserProfile)
+
+// router.get('/:username/followers',  UserController.getUserFollowers)
+// router.get('/:username/following',  UserController.getUserFollowing)
+// router.get('/:username/followers/count',  UserController.getUserFollowersCount)
+// router.get('/:username/following/count',  UserController.getUserFollowingCount)
+
+router.use('/:username/followers', followerRoutes)
+router.use('/:username/following', followingRoutes)
 
 
 export default router;
