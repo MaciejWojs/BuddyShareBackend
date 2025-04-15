@@ -198,47 +198,48 @@ async function main() {
                     },
                 });
 
-                console.log(`Streamer ${streamer.username} utworzony/zaktualizowany pomyślnie`);
+                // console.log(`Streamer ${streamer.username} utworzony/zaktualizowany pomyślnie`);
                 
-                // Dodanie przykładowego streamu z losowymi kategoriami
-                const streamOptions = await tx.streamOptions.create({
-                    data: {
-                        title: faker.lorem.sentence(),
-                        description: faker.lorem.paragraph(),
-                        createdAt: faker.date.recent(),
-                        updatedAt: new Date(),
-                        thumbnail: faker.image.url(),
-                        isDeleted: false,
-                        isLive: false,
-                        path: faker.internet.url()
-                    }
-                });
+                // // // Dodanie przykładowego streamu z losowymi kategoriami
+                // // const streamOptions = await tx.streamOptions.create({
+                //     data: {
+                //         title: faker.lorem.sentence(),
+                //         description: faker.lorem.paragraph(),
+                //         createdAt: faker.date.recent(),
+                //         updatedAt: new Date(),
+                //         thumbnail: faker.image.url(),
+                //         isPublic: false,
+                //         isDeleted: false,
+                //         isLive: false,
+                //         path: faker.internet.url()
+                //     }
+                // });
                 
-                const stream = await tx.streams.create({
-                    data: {
-                        streamerId: streamerData.streamerId,
-                        optionsId: streamOptions.streamOptionId
-                    }
-                });
+                // const stream = await tx.streams.create({
+                //     data: {
+                //         streamerId: streamerData.streamerId,
+                //         optionsId: streamOptions.streamOptionId
+                //     }
+                // });
                 
-                console.log(`Stream '${streamOptions.title}' utworzony dla streamera ${streamer.username}`);
+                // console.log(`Stream '${streamOptions.title}' utworzony dla streamera ${streamer.username}`);
                 
-                // Wybierz losowe kategorie dla streamu
-                const categories = await tx.categories.findMany();
-                const selectedCategories = faker.helpers.arrayElements(
-                    categories, 
-                    faker.number.int({ min: 1, max: 3 })
-                );
+                // // Wybierz losowe kategorie dla streamu
+                // const categories = await tx.categories.findMany();
+                // const selectedCategories = faker.helpers.arrayElements(
+                //     categories, 
+                //     faker.number.int({ min: 1, max: 3 })
+                // );
                 
-                for (const category of selectedCategories) {
-                    await tx.streamsCategories.create({
-                        data: {
-                            streamId: stream.streamId,
-                            categoryId: category.categoryId
-                        }
-                    });
-                    console.log(`Przypisano kategorię '${category.name}' do streamu '${streamOptions.title}'`);
-                }
+                // for (const category of selectedCategories) {
+                //     await tx.streamsCategories.create({
+                //         data: {
+                //             streamId: stream.streamId,
+                //             categoryId: category.categoryId
+                //         }
+                //     });
+                //     console.log(`Przypisano kategorię '${category.name}' do streamu '${streamOptions.title}'`);
+                // }
 
                 // Dodaj moderatorów - upewnij się, że moderators to tablica i nie jest pustą
                 if (Array.isArray(moderators) && moderators.length > 0) {

@@ -189,11 +189,12 @@ model StreamOptions {
   streamOptionId Int       @id @default(autoincrement()) @map("id")
   title          String
   description    String
-  createdAt      DateTime  @map("created_at")
-  updatedAt      DateTime  @map("updated_at")
-  thumbnail      String
+  createdAt      DateTime  @map("created_at") @default(now())
+  updatedAt      DateTime  @map("updated_at") @default(now()) @updatedAt
+  thumbnail      String?
   isDeleted      Boolean
   isLive         Boolean
+  isPublic       Boolean
   path           String?
   Streams        Streams[]
 

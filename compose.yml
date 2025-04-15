@@ -31,6 +31,7 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       COOKIE_SECRET: ${COOKIE_SECRET}
       NGINX_HOST: nginx
+      DEVELOPMENT: ${DEVELOPMENT} # true or false
     ports:
       - "5000:5000"
       # - "1935:1935"

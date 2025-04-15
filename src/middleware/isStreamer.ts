@@ -2,6 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { ReasonPhrases, StatusCodes } from 'http-status-codes';
 import { PrismaClient } from '@prisma/client';
 
+declare global {
+    namespace Express {
+        interface Request {
+            token?: string;
+        }
+    }
+}
+
 const prisma = new PrismaClient();
 
 /**
