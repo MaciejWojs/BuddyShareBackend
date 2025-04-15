@@ -176,8 +176,8 @@ model ChatMessages {
   streamId      Int      @map("stream_id")
   userId        Int      @map("user_id")
   message       String
-  createdAt     DateTime @map("created_at")
-  isDeleted     Boolean  @map("is_deleted")
+  createdAt     DateTime @default(now()) @map("created_at")
+  isDeleted     Boolean  @default(false) @map("is_deleted")
 
   stream Streams @relation(fields: [streamId], references: [streamId])
   user   Users   @relation(fields: [userId], references: [userId])
@@ -187,14 +187,14 @@ model ChatMessages {
 
 model StreamOptions {
   streamOptionId Int       @id @default(autoincrement()) @map("id")
-  title          String
-  description    String
-  createdAt      DateTime  @map("created_at") @default(now())
-  updatedAt      DateTime  @map("updated_at") @default(now()) @updatedAt
+  title          String    @default("Sample Title")
+  description    String    @default("Sample Description")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
   thumbnail      String?
-  isDeleted      Boolean
-  isLive         Boolean
-  isPublic       Boolean
+  isDeleted      Boolean   @default(false)
+  isLive         Boolean   @default(true)
+  isPublic       Boolean   @default(false)
   path           String?
   Streams        Streams[]
 
@@ -246,8 +246,8 @@ model Notifications {
   userId         Int      @map("user_id")
   streamId       Int?     @map("stream_id")
   message        String
-  createdAt      DateTime @map("created_at")
-  isRead         Boolean
+  createdAt      DateTime @default(now()) @map("created_at")
+  isRead         Boolean  @default(false)
 
   user   Users    @relation(fields: [userId], references: [userId])
   stream Streams? @relation(fields: [streamId], references: [streamId])
