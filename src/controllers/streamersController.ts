@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
+import { sql } from 'bun';
 
 const prisma = new PrismaClient();
 
@@ -22,14 +23,14 @@ const prisma = new PrismaClient();
  */
 export const getAllStreamers = async (req: Request, res: Response) => {
     try {
-        
+
         const streamers = await prisma.streamers.findMany({
             select: {
                 streamerId: true,
                 userId: true,
                 // Celowo pomijamy pole token
                 user: {
-                    select: { 
+                    select: {
                         userInfo: true,
                     },
                 },
@@ -64,12 +65,34 @@ export const getStreamerByUsername = async (req: Request, res: Response) => {
     // and attached the streamer info to req.streamer
 
     // Create a new object without the token
+
+    const live = await sql`
+            SELECT * FROM streams s 
+            JOIN stream_options so ON s.id = so.id 
+            WHERE s.streamer_id = ${req.streamer.streamerId} AND so."isLive" = TRUE
+            ORDER BY so.created_at DESC
+            LIMIT 1;
+        `;
+
+    console.log("LIVE: ", live);
+
     const { token, ...streamerWithoutToken } = req.streamer;
 
-    res.status(StatusCodes.OK).json({
+
+    // Przygotowanie odpowiedzi
+    const response = {
         userInfo: req.userInfo,
-        streamer: streamerWithoutToken
-    });
+        streamer: streamerWithoutToken,
+        stream: null,
+    };
+
+    // Dodaj stream jako osobny klucz, a nie jako część streamera
+    if (live.length > 0) {
+        response.stream = live[0];
+        //! TODO: Add streams urls with qualities
+    }
+
+    res.status(StatusCodes.OK).json(response);
 }
 
 /**
@@ -228,7 +251,7 @@ export const addStreamerModerator = async (req: Request, res: Response) => {
     if (!tempUser) {
         console.log("There is no user called", moderatorUsername);
         res.status(StatusCodes.NOT_FOUND).json({ message: ReasonPhrases.NOT_FOUND });
-        return 
+        return
     }
 
     if (!isModerator && !moderator) {
@@ -359,7 +382,7 @@ export const deleteStreamerModerator = async (req: Request, res: Response) => {
 
             if (!moderatorRecord) {
                 res.status(StatusCodes.NOT_FOUND).json({ message: "Moderator record not found" });
-                return 
+                return
             }
 
             await prisma.streamModerators.delete({
@@ -409,20 +432,16 @@ export const deleteStreamerModerator = async (req: Request, res: Response) => {
  * Returns a JSON object with the token and a 200 OK status code.
  */
 export const getStreamerToken = async (req: Request, res: Response) => {
-
-
     console.log("Getting streamer token for", req.userInfo.username);
     res.status(StatusCodes.OK).json({
         token: req.streamer.token,
     });
-    
-
 
     return;
 }
 
 export const updateStreamerToken = async (req: Request, res: Response) => {
-console.log("Updating streamer token for", req.userInfo.username);
+    console.log("Updating streamer token for", req.userInfo.username);
     const streamer = req.streamer;
     const updatedToken = require('crypto').randomBytes(64).toString('hex');
 
