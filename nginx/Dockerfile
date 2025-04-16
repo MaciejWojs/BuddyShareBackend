@@ -3,9 +3,9 @@ FROM alpine:latest
 
 # Utworzenie wszystkich potrzebnych katalogów dla HLS i DASH z odpowiednimi uprawnieniami
 RUN mkdir -p /tmp/hls && \
-    mkdir -p /tmp/hls/transcode && \
+    # mkdir -p /tmp/hls/transcode && \
     mkdir -p /tmp/dash && \
-    mkdir -p /tmp/dash/transcode && \
+    # mkdir -p /tmp/dash/transcode && \
     chmod -R 777 /tmp/hls && \
     chmod -R 777 /tmp/dash
 
@@ -78,8 +78,11 @@ COPY nginx.conf /etc/nginx/nginx.conf.template
 
 COPY index.html /usr/share/nginx/html/index.html 
 
+# RUN ln -sf /dev/stderr /var/log/nginx/error.log 
+# RUN ln -sf /dev/stdout /var/log/nginx/access.log
+
 # Expose RTMP and HTTP ports
 EXPOSE 1935 80 8080
 
-# Start NGINX with environment variables substitution
-CMD ["/bin/sh", "-c", "envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"]
+# Start NGINX
+ENTRYPOINT ["sh", "-c", "export DOLLAR='$' && envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
