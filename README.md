@@ -122,6 +122,10 @@ Aby uruchomić całe środowisko za pomocą Docker Compose:
    ```bash
    docker-compose up
    ```
+5. Skrót do uruchomienia w trakcie rozwoju:
+   ```bash
+   docker build -t buddy-share-back:latest . && docker compose up -d && docker exec -it backend bunx prisma db seed
+   ```
 
 Po uruchomieniu, usługi będą dostępne pod następującymi adresami:
 - Backend API: http://localhost:5000
