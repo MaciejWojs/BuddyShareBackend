@@ -1,4 +1,5 @@
 import { userSettingsPathsEN, userSettingsPathsPL } from './settings';
+import { userNotificationsPathsEN, userNotificationsPathsPL } from './notifications';
 
 export const usersPathsEN = {
   '/users/{username}': {

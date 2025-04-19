@@ -1,7 +1,9 @@
 import { components } from './components/schemas';
-import { authPathsEN, authPathsPL } from './paths/auth/';
-import { mediaPathsEN, mediaPathsPL } from './paths/media/index';
-import { usersPathsEN, usersPathsPL } from './paths/users/index';
+import { authPathsEN, authPathsPL } from './paths/auth';
+import { mediaPathsEN, mediaPathsPL } from './paths/media';
+import { usersPathsEN, usersPathsPL } from './paths/users';
+import { userSettingsPathsEN, userSettingsPathsPL } from './paths/users/settings';
+import { userNotificationsPathsEN, userNotificationsPathsPL } from './paths/users/notifications';
 import { streamersPathsEN, streamersPathsPL } from './paths/streamers';
 import { streamsPathsEN, streamsPathsPL } from './paths/streams';
 
@@ -40,6 +42,8 @@ export function createOpenAPISpec(language: 'en' | 'pl' = 'en') {
       ...(isEnglish ? authPathsEN : authPathsPL),
       ...(isEnglish ? mediaPathsEN : mediaPathsPL),
       ...(isEnglish ? usersPathsEN : usersPathsPL),
+      ...(isEnglish ? userSettingsPathsEN : userSettingsPathsPL),
+      ...(isEnglish ? userNotificationsPathsEN : userNotificationsPathsPL),
       ...(isEnglish ? streamersPathsEN : streamersPathsPL),
       ...(isEnglish ? streamsPathsEN : streamsPathsPL)
     },

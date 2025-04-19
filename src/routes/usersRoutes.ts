@@ -5,6 +5,7 @@ import { userExistsMiddleware } from '../middleware/userExist';
 import followingRoutes from './subroutes/followingRoutes';
 import followerRoutes from './subroutes/followerRoutes';
 import userSettingsRoutes from './subroutes/userSettingsRoutes';
+import { notifactionExist } from '../middleware/notifactionExist';
 
 const router = Router();
 
@@ -18,6 +19,14 @@ router.patch('/:username/ban', authenticate, isAdmin, UserController.banUser)
 router.patch('/:username/unban', authenticate, isAdmin, UserController.unbanUser)
 router.patch('/:username/role', authenticate, isAdmin, UserController.changeUsersRole)
 router.get('/:username/role', authenticate, isAdmin, UserController.getUserRole)
+
+router.use('/:username/notifications', authenticate, checkUserResourceOwnership)
+router.use('/:username/notifications/:id', notifactionExist)
+router.get('/:username/notifications', UserController.getUserNotifications)
+router.put('/:username/notifications', UserController.updateUserNotificationsInBulk)
+router.patch('/:username/notifications/:id', UserController.updateUserNotification)
+router.delete('/:username/notifications', UserController.deleteUserNotificationsInBulk)
+router.delete('/:username/notifications/:id', UserController.deleteUserNotification)
 
 router.use('/:username/settings', authenticate, checkUserResourceOwnership, userSettingsRoutes)
 
