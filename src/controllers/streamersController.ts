@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { sql } from 'bun';
+import axios from 'axios';
+import { transformStreamsData } from '../utils/streams';
 
 const prisma = new PrismaClient();
 
@@ -64,32 +66,72 @@ export const getStreamerByUsername = async (req: Request, res: Response) => {
     // isStreamer middleware has verified the user is a streamer
     // and attached the streamer info to req.streamer
 
-    // Create a new object without the token
-
+    // Sprawdzamy, czy użytkownik przeglądający stronę jest tym samym streamerem
+    const isOwner = req.user && req.streamer && req.user.userInfo.userInfoId === req.streamer.userId;
+    
+    // Modyfikujemy zapytanie SQL, aby uwzględnić prywatne streamy, gdy właściciel przegląda
     const live = await sql`
-            SELECT * FROM streams s 
-            JOIN stream_options so ON s.id = so.id 
-            WHERE s.streamer_id = ${req.streamer.streamerId} AND so."isLive" = TRUE
-            ORDER BY so.created_at DESC
-            LIMIT 1;
-        `;
+                    SELECT *
+                    FROM streams s
+                        JOIN stream_options so ON s.id = so.id
+                    WHERE
+                        s.streamer_id = ${req.streamer.streamerId}
+                        AND so."isLive" = TRUE
+                        ${isOwner ? sql`` : sql`AND so."isPublic" = TRUE`}
+                        AND so."isDeleted" = FALSE
+                    ORDER BY
+                        so.created_at DESC
+                    LIMIT 1;
+                    `;
 
     console.log("LIVE: ", live);
+    console.log("Is owner viewing: ", isOwner);
 
     const { token, ...streamerWithoutToken } = req.streamer;
 
-
     // Przygotowanie odpowiedzi
-    const response = {
+    const response: {
+        userInfo: typeof req.userInfo,
+        streamer: typeof streamerWithoutToken,
+        stream: { urls: any, isOwnerViewing: boolean } | null
+    } = {
         userInfo: req.userInfo,
         streamer: streamerWithoutToken,
-        stream: null,
+        stream: null
     };
 
     // Dodaj stream jako osobny klucz, a nie jako część streamera
     if (live.length > 0) {
-        response.stream = live[0];
-        //! TODO: Add streams urls with qualities
+        // Tworzenie podstawowego obiektu stream z dodatkową flagą isOwnerViewing
+        response.stream = {
+            ...live[0],
+            urls: null,
+            isOwnerViewing: isOwner
+        };
+
+        const host = process.env.STREAM_HOST || "http://nginx:8080/api";
+        const endpoint = `${host}/streams`;
+
+        const urls = await axios.get(endpoint);
+        if (urls && urls.data) {
+            // Przekształć dane streamu
+            const transformedStreams = transformStreamsData(urls.data);
+
+            // Filtruj tylko streamy zawierające token streamera w nazwie
+            if (transformedStreams && transformedStreams.streams && Array.isArray(transformedStreams.streams)) {
+                const streamerToken = req.streamer.token;
+                const streamerStreams = transformedStreams.streams.filter((stream: { name: string | any[]; }) =>
+                    stream.name && stream.name.includes(streamerToken)
+                );
+
+                console.log("Found streams for token: ", streamerToken, streamerStreams.length);
+
+                // Dodaj urls jako właściwość obiektu stream
+                response.stream!.urls = streamerStreams.length > 0 ? streamerStreams : null;
+            } else {
+                response.stream!.urls = null;
+            }
+        }
     }
 
     res.status(StatusCodes.OK).json(response);

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, isAdmin, checkUserResourceOwnership } from '../middleware/authenticate';
+import { authenticate, isAdmin, checkUserResourceOwnership, optionalAuthenticate } from '../middleware/authenticate';
 import { userExistsMiddleware } from '../middleware/userExist';
 import * as StreamersController from '../controllers/streamersController';
 import { isStreamer } from '../middleware/isStreamer';
@@ -11,7 +11,7 @@ router.get('/', authenticate, isAdmin, StreamersController.getAllStreamers);
 
 router.use("/:username", userExistsMiddleware, isStreamer);
 
-router.get('/:username', StreamersController.getStreamerByUsername);
+router.get('/:username', optionalAuthenticate, StreamersController.getStreamerByUsername);
 
 router.use('/:username/token', checkUserResourceOwnership);
 

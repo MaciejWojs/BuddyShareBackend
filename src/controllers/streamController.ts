@@ -3,6 +3,7 @@ import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import axios from 'axios';
 import { sql } from 'bun';
+import { transformStreamsData } from '../utils/streams';
 
 const prisma = new PrismaClient();
 const host = process.env.STREAM_HOST || "http://nginx:8080/api";
@@ -22,49 +23,6 @@ export const getAllStreams = async (_req: Request, res: Response) => {
     }
 };
 
-/**
- * Transformuje dane z nginx-rtmp na uproszczony format z linkami do streamów
- */
-const transformStreamsData = (data: any) => {
-    const result: any = { streams: [] };
-
-    // Sprawdzenie, czy mamy dane w oczekiwanym formacie
-    if (!data['http-flv'] || !data['http-flv'].servers) {
-        return result;
-    }
-
-    // Przejdźmy przez wszystkie serwery i aplikacje
-    console.log(data['http-flv'].servers[0].applications[1].live['streams']);
-    for (const live of data['http-flv'].servers[0].applications[1].live['streams']) {
-        const liveName = live.name;
-        const streamInfo = {
-            name: live.name,
-            qualities: [
-                {
-                    name: "source",
-                    dash: `/dash/${liveName}.mpd`
-                },
-                {
-                    name: "720p",
-                    dash: `/dash/test/${liveName}_720p.mpd`
-                },
-                {
-                    name: "480p",
-                    dash: `/dash/test/${liveName}_480p.mpd`
-                },
-                {
-                    name: "360p",
-                    dash: `/dash/test/${liveName}_360p.mpd`
-                }
-            ],
-            active: true,
-            // clients: stream.nclients || 0
-        };
-        result.streams.push(streamInfo);
-    }
-
-    return result;
-};
 
 export const notifyStreamStart = async (req: Request, res: Response) => {
     console.log('notifyStreamStart endpoint hit');
@@ -101,7 +59,7 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
       NULL,
       false,
       true,
-      true,
+      DEFAULT,
       NULL
     )
     RETURNING *`;

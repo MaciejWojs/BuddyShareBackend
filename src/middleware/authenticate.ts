@@ -52,6 +52,50 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
     });
 };
 
+/**
+ * Middleware for optional user authentication using JWT token
+ * Token is retrieved from signed cookies and verified using JWT_ACCESS_SECRET
+ * If verification succeeds, user data is added to the request object
+ * If token doesn't exist or verification fails, middleware continues without error
+ *
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Function to pass control to the next middleware
+ * @returns {void}
+ */
+export const optionalAuthenticate = (req: Request, res: Response, next: NextFunction): void => {
+    console.log("Optional authenticate middleware is being executed");
+    const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+
+    if (!JWT_ACCESS_SECRET) {
+        console.error("JWT_ACCESS_SECRET is not defined");
+        return next();
+    }
+
+    if (req.newAccessToken) {
+        console.warn("New access token generated, skipping optionalAuthenticate middleware");
+        return next(); 
+    }
+
+    const token = req.signedCookies['JWT'];
+    console.log("Optional authenticating with token:", token ? "present" : "absent");
+
+    if (!token) {
+        console.log("No token provided, continuing without authentication");
+        return next();
+    }
+
+    jwt.verify(token, JWT_ACCESS_SECRET, (err: jwt.VerifyErrors | null, user: any) => {
+        if (err) {
+            console.error("Failed to authenticate user:", err);
+            // W przypadku błędu weryfikacji tokenu, kontynuujemy bez uwierzytelnienia
+            return next();
+        }
+        console.log("User authenticated:", user.userInfo.username);
+        req.user = user;
+        next();
+    });
+};
 
 /**
  * Middleware that checks if the user has admin role permissions.
