@@ -73,7 +73,17 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
       options_id) VALUES (default, ${streamerId}, ${streamOptions[0].id})
     RETURNING *`;
 
-    // const stream = await sql
+
+    const subscribers = await sql`select * from subscribers s join users u on u.id = s.user_id join users_info ui on u.id = ui.id where s.streamer_id = ${streamerId} and ui."isBanned" = false`;
+
+    for (const subscriber of subscribers) {
+        const notification = await sql` insert into notifications (id, user_id, stream_id, message, created_at, "isRead")
+        values (default, ${subscriber.user_id}, ${stream[0].id}, ${req.streamer.user.userInfo.username + ' started streaming!'}, default, default)
+        returning *`;
+        console.log(notification[0]);
+        // console.log(subscriber);
+    }
+
     res.sendStatus(StatusCodes.OK);
     console.log(`${req.streamer.user.userInfo.username} started streaming ▶️`);
     return;
@@ -102,7 +112,7 @@ export const notifyStreamEnd = async (req: Request, res: Response) => {
       AND so."isLive" = true
     RETURNING so.*`;
 
-    
+
     console.log(`${req.streamer.user.userInfo.username} finished streaming. ⏹️`);
     res.sendStatus(StatusCodes.OK);
     return;
