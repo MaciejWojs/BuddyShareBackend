@@ -55,5 +55,9 @@ export const getUserSettings = async (req: Request, res: Response) => {
  * router.put('/settings', authenticate, updateUserSettings);
  */
 export const updateUserSettings = async (req: Request, res: Response) => {
-    
+    console.log("updateUserSettings endpoint reached");
+    res.status(StatusCodes.NOT_IMPLEMENTED).json({
+        success: false,
+        message: 'Update user settings functionality is not yet implemented'
+    });
 }
