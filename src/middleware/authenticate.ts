@@ -249,82 +249,99 @@ export const tokenRefresher = async (req: Request, res: Response, next: NextFunc
 
     const accessToken = req.signedCookies['JWT'];
     const refreshToken = req.signedCookies['refresh_token'];
+    console.log("Tokens found - Access:", !!accessToken, "Refresh:", !!refreshToken);
 
-    // Jeśli nie ma żadnych tokenów, przejdź dalej (authenticate zajmie się resztą)
-    if (!accessToken || !refreshToken) {
+    // If both tokens are missing, proceed
+    if (!accessToken && !refreshToken) {
+        console.log("No tokens found, proceeding to next middleware");
+        return next();
+    }
+
+    // If access token exists and is valid, proceed
+    if (accessToken) {
+        try {
+            // console.log("Attempting to verify access token");
+            jwt.verify(accessToken, JWT_ACCESS_SECRET);
+            // console.log("Access token is valid, proceeding to next middleware");
+            return next();
+        } catch (error) {
+            if (!(error instanceof jwt.TokenExpiredError)) {
+                console.error("Access token verification failed with non-expiry error:", error);
+                return next();
+            }
+            // console.log("Access token expired, proceeding to refresh process");
+        }
+    }
+
+    // If we get here, either access token is missing or expired, so try refresh
+    if (!refreshToken) {
+        // console.log("No refresh token available");
         return next();
     }
 
     try {
-        // Próba weryfikacji access tokena
-        jwt.verify(accessToken, JWT_ACCESS_SECRET);
-        return next(); // Token jest poprawny, kontynuuj
-    } catch (error) {
-        // Jeśli token wygasł (i tylko wtedy), spróbuj odświeżyć
-        if (error instanceof jwt.TokenExpiredError) {
-            console.error("Access token expired, trying to refresh...");
-            try {
-                // Najpierw zweryfikuj refresh token
-                const decodedRefreshToken = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as {
-                    userId: number;
-                    tokenVersion: number;
-                };
+        // console.log("Verifying refresh token");
+        const decodedRefreshToken = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as {
+            userId: number;
+            tokenVersion: number;
+        };
+        // console.log("Refresh token decoded successfully for user:", decodedRefreshToken.userId);
 
-                // Sprawdź czy token istnieje w bazie danych i nie jest unieważniony
-                const tokenRecord = await prisma.refreshToken.findFirst({
-                    where: {
-                        token: refreshToken,
-                        invalidated: false,
-                        userId: decodedRefreshToken.userId
-                    }
-                });
-
-                if (!tokenRecord || new Date() > tokenRecord.expiresAt) {
-                    return next(); // Token nieprawidłowy lub wygasły
-                }
-
-                // Pobierz dane użytkownika
-                const user = await prisma.users.findUnique({
-                    where: { userId: decodedRefreshToken.userId },
-                    include: {
-                        userInfo: true,
-                        userSettings: {
-                            select: {
-                                userSettingsId: true,
-                                notificationsEnabled: true,
-                                darkMode: true,
-                            }
-                        }
-                    }
-                });
-
-                if (!user) {
-                    return next();
-                }
-
-                // Generuj nowy access token
-                const newAccessToken = jwt.sign(user, JWT_ACCESS_SECRET, { expiresIn: "15m" });
-
-                // Ustaw nowy access token
-                res.cookie('JWT', newAccessToken, {
-                    signed: true,
-                    httpOnly: true,
-                    secure: true,
-                    maxAge: 15 * 60 * 1000 // 15 minut
-                });
-
-                // Zmodyfikuj obiekt żądania, aby zawierał dane użytkownika
-                req.user = user;
-                req.newAccessToken = newAccessToken;
-
-                return next();
-            } catch (err) {
-                console.error("Error refreshing token automatically:", err);
-                return next();
+        // console.log("Checking refresh token in database");
+        const tokenRecord = await prisma.refreshToken.findFirst({
+            where: {
+                token: refreshToken,
+                invalidated: false,
+                userId: decodedRefreshToken.userId
             }
-        } else {
-            // Inny błąd weryfikacji tokena
+        });
+        // console.log("Token record found:", !!tokenRecord);
+
+        if (!tokenRecord || new Date() > tokenRecord.expiresAt) {
+            // console.log("Token record invalid or expired");
             return next();
         }
+
+        // console.log("Fetching user data for ID:", decodedRefreshToken.userId);
+        const user = await prisma.users.findUnique({
+            where: { userId: decodedRefreshToken.userId },
+            include: {
+                userInfo: true,
+                userSettings: {
+                    select: {
+                        userSettingsId: true,
+                        notificationsEnabled: true,
+                        darkMode: true,
+                    }
+                }
+            }
+        });
+
+        if (!user) {
+            // console.log("User not found in database");
+            return next();
+        }
+        // console.log("User data retrieved successfully");
+
+        // console.log("Generating new access token");
+        const newAccessToken = jwt.sign(user, JWT_ACCESS_SECRET, { expiresIn: "15m" });
+        // console.log("New access token generated successfully");
+
+        // console.log("Setting new access token cookie");
+        res.cookie('JWT', newAccessToken, {
+            signed: true,
+            httpOnly: true,
+            secure: true,
+            maxAge: 15 * 60 * 1000
+        });
+
+        req.user = user;
+        req.newAccessToken = newAccessToken;
+        // console.log("Token refresh completed successfully");
+
+        return next();
+    } catch (err) {
+        console.error("Token refresh failed with error:", err);
+        return next();
     }
 };
