@@ -13,7 +13,7 @@ router.use("/:username", userExistsMiddleware, isStreamer);
 
 router.get('/:username', optionalAuthenticate, StreamersController.getStreamerByUsername);
 
-router.use('/:username/token', checkUserResourceOwnership);
+router.use('/:username/token',authenticate, userExistsMiddleware, checkUserResourceOwnership);
 
 router.get('/:username/token', StreamersController.getStreamerToken);
 router.patch('/:username/token', StreamersController.updateStreamerToken);
