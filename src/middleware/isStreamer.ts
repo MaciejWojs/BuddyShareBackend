@@ -71,6 +71,7 @@ export const isStreamer = async (req: Request, res: Response, next: NextFunction
         }
 
         req.streamer = streamer;
+        console.log("Streamer found: ", streamer);
         next();
     } catch (error) {
         console.error(`Error checking if user exists: ${error}`);

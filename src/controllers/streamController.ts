@@ -126,3 +126,93 @@ const getStreamerStreamsCount = async (streamerId: number) => {
     `;
     return query[0].cnt;
 }
+
+export const getStream = async (req: Request, res: Response) => {
+    console.log('getStream endpoint hit for user:', req.userInfo.username);
+    const streamerId = req.streamer.streamerId;
+    console.log(`Streamer ID: ${streamerId}`);
+    const streamOptionId = req.params.id;
+    console.log(`Stream ID: ${streamOptionId}`);
+
+    if (!streamOptionId) {
+        res.status(StatusCodes.BAD_REQUEST).json({ error: 'Stream ID is required' });
+        return;
+    }
+    const stream = await sql`
+    SELECT s.*, so.*
+    FROM streams s
+    JOIN stream_options so ON s.options_id = so.id
+    WHERE s.streamer_id = ${streamerId} AND s.id = ${streamOptionId}
+    LIMIT 1
+    `;
+    if (stream.length === 0) {
+        res.status(StatusCodes.NOT_FOUND).json({ error: 'Stream not found' });
+        return;
+    }
+    res.status(StatusCodes.OK).json(stream[0]);
+    return;
+
+
+}
+
+export const patchStream = async (req: Request, res: Response) => {
+    console.log('patchStream endpoint hit for user:', req.userInfo.username);
+    const streamerId = req.streamer.streamerId;
+    console.log(`Streamer ID: ${streamerId}`);
+
+    const streamOptionId = req.params.id;
+    console.log(`Stream option ID: ${streamOptionId}`);
+
+    if (!streamOptionId) {
+        res.status(StatusCodes.BAD_REQUEST).json({ error: 'Stream ID is required' });
+        return;
+    }
+
+
+    const stream = await sql`
+    UPDATE stream_options
+    SET title = ${req.body.title},
+        description = ${req.body.description},
+        "isPublic" = ${req.body.isPublic},
+        updated_at = DEFAULT,
+        thumbnail = ${req.body.thumbnail || null} 
+    WHERE id = ${streamOptionId}
+    RETURNING *;
+`
+    if (stream.length === 0) {
+        res.status(StatusCodes.NOT_FOUND).json({ error: 'Stream not found' });
+        return;
+    }
+    res.status(StatusCodes.OK).json(stream[0]);
+    return;
+
+}
+
+export const softDeleteStream = async (req: Request, res: Response) => {
+    console.log('softDeleteStream endpoint hit for user:', req.userInfo.username);
+    const streamerId = req.streamer.streamerId;
+    console.log(`Streamer ID: ${streamerId}`);
+
+    const streamOptionId = req.params.id;
+    console.log(`Stream option ID: ${streamOptionId}`);
+
+    if (!streamOptionId) {
+        res.status(StatusCodes.BAD_REQUEST).json({ error: 'Stream ID is required' });
+        return;
+    }
+
+    const stream = await sql`
+    UPDATE stream_options
+    SET "isDeleted" = true
+    WHERE id = ${streamOptionId}
+    RETURNING *;
+`
+    if (stream.length === 0) {
+        res.status(StatusCodes.NOT_FOUND).json({ error: 'Stream not found' });
+        return;
+    }
+    res.status(StatusCodes.OK).json(stream[0]);
+    return;
+
+}
+
