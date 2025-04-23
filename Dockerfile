@@ -9,11 +9,20 @@ COPY package.json bun.lock ./
 # Install dependencies
 RUN bun install
 
+
+# Copy only Prisma files for generate step
+COPY prisma ./prisma
+COPY .env .env 
+
+# Generate Prisma client
+RUN bunx prisma generate
+
+
 # Copy the rest of the project files
 COPY . .
 
 # Generate Prisma client and build the app
-RUN bunx prisma generate && bun run build
+RUN bun run build
 
 
 # === Production Stage ===
@@ -28,12 +37,13 @@ COPY --from=builder /app/bun.lock ./
 # Install only production dependencies
 RUN bun install --production
 
-COPY --from=builder /app/dist/ .
+COPY --from=builder /app/prisma ./prisma
+RUN bunx prisma generate
 COPY --from=builder /app/prisma ./prisma
 
 # Optional: Remove Prisma dev dependencies if already generated
 # No need to regenerate the client if it's built already
 # So we remove this line:
-RUN bunx prisma generate
+COPY --from=builder /app/dist/ .
 
 CMD ["bun", "run", "container"]
