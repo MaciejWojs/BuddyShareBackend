@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
+import { sql } from 'bun';
 
 // Rozszerzenie interfejsu Request o pole userInfo
 declare global {
@@ -78,32 +79,32 @@ export const getAllUsersInfo = async (req: Request, res: Response) => {
         // Set headers for streaming JSON
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Transfer-Encoding', 'chunked');
-        
+
         // Start the response with an opening bracket for JSON array
         res.write('[');
-        
+
         const prismaUsers = await prisma.usersInfo.findMany();
-        
+
         if (!prismaUsers || prismaUsers.length === 0) {
             // Close the array and end the response if no users found
             res.write(']');
             res.end();
             return;
         }
-        
+
         // Stream each user one by one
         prismaUsers.forEach((user, index) => {
             // Add comma separator between objects except for the last one
             const separator = index < prismaUsers.length - 1 ? ',' : '';
             res.write(JSON.stringify(user) + separator);
         });
-        
+
         // Close the JSON array and end the response
         res.write(']');
         res.end();
     } catch (error: any) {
         console.error(`Error fetching users: ${error}`);
-        
+
         // If headers haven't been sent yet, send error response
         if (!res.headersSent) {
             res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
@@ -440,64 +441,466 @@ export const getUserProfile = async (req: Request, res: Response) => {
     });
 }
 
-/**
- * Fetches user settings for the authenticated user.
- * 
- * @async
- * @function getUserSettings
- * @param {Request} req - Express request object containing the authenticated user information in req.userInfo
- * @param {Response} res - Express response object
- * @returns {Promise<void>} - Sends a JSON response with user settings or error message
- * 
- * @throws Will throw an error if database operations fail
- * 
- * @example
- * // Route implementation
- * router.get('/settings', authenticate, getUserSettings);
- */
-export const getUserSettings = async (req: Request, res: Response) => {
+export const getUserFollowers = async (req: Request, res: Response) => {
+    console.log("REQ.USERINFO: ", req.userInfo.user.userId);
+
     try {
-        const user = await prisma.users.findUnique({
+        const followers = await prisma.followers.findMany({
             where: {
-                userSettingsId: req.userInfo.userInfoId
+                followedUserId: req.userInfo.user.userId
+            },
+            include: {
+                follower: {  // Changed from 'followed' to 'follower'
+                    select: {
+                        userInfo: {
+                            select: {
+                                username: true,
+                                // description: true,
+                                profilePicture: true,
+                            }
+                        }
+                    }
+                }
             }
         });
-        const userSettings = await prisma.userSettings.findUnique({
-            where: {
-                userSettingsId: user?.userSettingsId
-            }
-        });
-        if (!userSettings) {
-            res.status(StatusCodes.NOT_FOUND).json({
-                success: false,
-                message: 'User settings not found'
-            });
-            return;
-        }
-        const { passwordHash, ...userSettingsWithoutPassword } = userSettings;
-        res.status(StatusCodes.OK).json({
-            ...userSettingsWithoutPassword
-        });
-    } catch (error: any) {
-        console.error(`Error fetching user settings: ${error}`);
+        res.status(StatusCodes.OK).json(followers);
+    }
+    catch (error: any) {
+        console.error(`Error fetching user followers: ${error}`);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
             success: false,
-            message: 'Error fetching user settings'
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
         });
     }
 }
 
+export const getUserFollowing = async (req: Request, res: Response) => {
+
+    console.log("REQ.USERINFO: ", req.userInfo.user.userId);
+    try {
+        const following = await prisma.followers.findMany({
+            where: {
+                followerUserId: req.userInfo.user.userId
+            },
+            include: {
+                followed: {
+                    select: {
+                        userInfo: {
+                            select: {
+                                username: true,
+                                // description: true,
+                                profilePicture: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        res.status(StatusCodes.OK).json(following);
+    }
+    catch (error: any) {
+        console.error(`Error fetching user following: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+export const getUserFollowersCount = async (req: Request, res: Response) => {
+    console.log("Getting followers count for user ID:", req.userInfo.user.userId);
+    try {
+        const followersCount = await prisma.followers.count({
+            where: {
+                followedUserId: req.userInfo.user.userId
+            }
+        });
+        res.status(StatusCodes.OK).json({
+            success: true,
+            count: followersCount
+        });
+    }
+    catch (error: any) {
+        console.error(`Error fetching user followers count: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+export const getUserFollowingCount = async (req: Request, res: Response) => {
+    console.log("Getting following count for user ID:", req.userInfo.user.userId);
+    try {
+        const followingCount = await prisma.followers.count({
+            where: {
+                followerUserId: req.userInfo.user.userId
+            }
+        });
+        res.status(StatusCodes.OK).json({
+            success: true,
+            count: followingCount
+        });
+    }
+    catch (error: any) {
+        console.error(`Error fetching user following count: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+export const followUser = async (req: Request, res: Response) => {
+    console.log("Attempting to follow user with ID:", req.userInfo.user.userId);
+    try {
+        const followerUserId = req.userInfoOld.user.userId;
+        const followedUserId = req.userInfo.user.userId;
+        console.log("Attempting to follow user with ID:", followedUserId);
+
+        if (!followedUserId || !followerUserId) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: `${ReasonPhrases.BAD_REQUEST}`
+            });
+            return;
+        }
+
+        if (followerUserId === followedUserId) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'You cannot follow yourself'
+            });
+            return;
+        }
 
 
-// const deleteUser = async (userId: number) => {
-//     try {
-//         await prisma.user.delete({
-//             where: {
-//                 id: userId
-//             }
-//         });
-//         console.log(`User with ID ${userId} deleted successfully`);
-//     } catch (error) {
-//         console.error(`Error deleting user with ID ${userId}: ${error}`);
-//     }
-// }
+        await prisma.followers.create({
+            data: {
+                followerUserId: followerUserId,
+                followedUserId: followedUserId
+            }
+        });
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: `User with id: ${followerUserId} followed user with id: ${followedUserId} successfully`
+        });
+        console.log(`User with id: ${followerUserId} followed user with id: ${followedUserId} successfully`)
+    }
+    catch (error: any) {
+        console.error(`Error following user: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+
+}
+
+export const unfollowUser = async (req: Request, res: Response) => {
+    console.log("Attempting to unfollow user :", req.userInfo.user.userId);
+    try {
+        const followerUserId = req.userInfoOld?.user?.userId;
+        const followedUserId = req.userInfo?.user?.userId;
+
+        // Validate both IDs exist
+        if (!followerUserId || !followedUserId) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'Missing user IDs required for unfollowing'
+            });
+            return;
+        }
+
+        // Check if users are the same
+        if (followerUserId === followedUserId) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'You cannot unfollow yourself'
+            });
+            return;
+        }
+
+        // Check if the follow relationship exists
+        const existingFollow = await prisma.followers.findUnique({
+            where: {
+                followerUserId_followedUserId: {
+                    followerUserId: followerUserId,
+                    followedUserId: followedUserId
+                }
+            }
+        });
+
+        if (!existingFollow) {
+            res.status(StatusCodes.NOT_FOUND).json({
+                success: false,
+                message: 'You are not following this user'
+            });
+            return;
+        }
+
+        await prisma.followers.delete({
+            where: {
+                followerUserId_followedUserId: {
+                    followerUserId: followerUserId,
+                    followedUserId: followedUserId
+                }
+            }
+        });
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: `User with id: ${followerUserId} unfollowed user with id: ${followedUserId} successfully`
+        });
+        console.log(`User with id: ${followerUserId} unfollowed user with id: ${followedUserId} successfully`);
+    }
+    catch (error: any) {
+        console.error(`Error unfollowing user: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+
+}
+
+export const getUserNotifications = async (req: Request, res: Response) => {
+    console.log("Getting notifications for user ID:", req.userInfo.user.userId);
+    try {
+        const notifications = await sql`
+            SELECT * FROM notifications
+            WHERE "user_id" = ${req.userInfo.user.userId}
+        `;
+
+        console.log("Notifications: ", notifications);
+        res.status(StatusCodes.OK).json(notifications);
+    }
+    catch (error: any) {
+        console.error(`Error fetching user notifications: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+export const updateUserNotification = async (req: Request, res: Response) => {
+    console.log("Updating notification for user ID:", req.userInfo.user.userId);
+    try {
+        const notificationId = req.params.id;
+        const { isRead } = req.body;
+
+        // const { count } = await sql` select * from notifications where id = ${notificationId} and "user_id" = ${req.userInfo.user.userId} `;
+        // console.log("does notifiaction exist Count: (should be 1) ", count);
+        // if (count === 0) {
+        //     res.status(StatusCodes.NOT_FOUND).json({
+        //         success: false,
+        //         message: 'Notification not found'
+        //     });
+        //     return;
+        // }
+
+        if (isRead === true || isRead === false || isRead === 1 || isRead === 0) {
+            console.log("Updating notification with ID:", notificationId);
+            await sql`
+                UPDATE notifications
+                SET "isRead" = ${isRead}
+                WHERE id = ${notificationId}
+            `;
+            res.status(StatusCodes.OK).json({
+                success: true,
+                message: `Notification with ID: ${notificationId} updated successfully`
+            });
+        }
+    } catch (error: any) {
+        console.error(`Error updating user notification: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+export const deleteUserNotification = async (req: Request, res: Response) => {
+    console.log("deleting notification for user ID:", req.userInfo.user.userId);
+    try {
+        const notificationId = req.params.id;
+
+        // const { count } = await sql` select * from notifications where id = ${notificationId} and "user_id" = ${req.userInfo.user.userId} `;
+        // console.log("does notifiaction exist Count: (should be 1) ", count);
+        // if (count === 0) {
+        //     res.status(StatusCodes.NOT_FOUND).json({
+        //         success: false,
+        //         message: 'Notification not found'
+        //     });
+        //     return;
+        // }
+
+        console.log("deleting notification with ID:", notificationId);
+        await sql`
+                DELETE FROM notifications WHERE id = ${notificationId} 
+            `;
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: `Notification with ID: ${notificationId} deleted successfully`
+        });
+    } catch (error: any) {
+        console.error(`Error deleting user notification: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+/**
+ * Aktualizuje wiele powiadomień użytkownika jednocześnie
+ * 
+ * @param req - Express request object z tablicą powiadomień do aktualizacji
+ * @param res - Express response object
+ * 
+ * @example
+ * // Format danych wejściowych:
+ * // {
+ * //   notifications: [
+ * //     { id: 1, isRead: true },
+ * //     { id: 2, isRead: true },
+ * //     ...
+ * //   ]
+ * // }
+ */
+export const updateUserNotificationsInBulk = async (req: Request, res: Response) => {
+    console.log("Updating notifications in bulk for user ID:", req.userInfo.user.userId);
+    try {
+        const { notifications } = req.body;
+
+        if (!notifications || !Array.isArray(notifications) || notifications.length === 0) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'Invalid data format. Expected an array of notifications.'
+            });
+            return
+        }
+
+        // Pobierz wszystkie identyfikatory powiadomień
+        const notificationIds = notifications.map(n => n.id);
+        console.log(`Updating ${notificationIds.length} notifications`);
+
+        // Sprawdź, czy wszystkie powiadomienia należą do użytkownika
+        const userNotifications = await sql`
+            SELECT id FROM notifications 
+            WHERE "user_id" = ${req.userInfo.user.userId} 
+            AND id IN ${sql(notificationIds)}
+        `;
+
+        const foundIds = userNotifications.map((n: any) => n.id);
+
+        // Filtruj tylko powiadomienia, które należą do użytkownika
+        const validNotifications = notifications.filter(n => foundIds.includes(n.id));
+
+        if (validNotifications.length === 0) {
+            res.status(StatusCodes.NOT_FOUND).json({
+                success: false,
+                message: 'No matching notifications found for this user'
+            });
+            return
+        }
+
+        // Jeśli są jakieś niepasujące powiadomienia, zaloguj ostrzeżenie
+        if (validNotifications.length < notifications.length) {
+            console.warn(`Niektóre powiadomienia (${notifications.length - validNotifications.length}) nie należą do użytkownika lub nie istnieją`);
+        }
+
+        // Wykonaj aktualizacje
+        for (const notification of validNotifications) {
+            if (notification.isRead === true || notification.isRead === false) {
+                await sql`
+                    UPDATE notifications
+                    SET "isRead" = ${notification.isRead}
+                    WHERE id = ${notification.id} AND "user_id" = ${req.userInfo.user.userId}
+                `;
+            }
+        }
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: `Successfully updated ${validNotifications.length} notifications`,
+            updatedIds: validNotifications.map(n => n.id)
+        });
+    } catch (error: any) {
+        console.error(`Error updating user notifications in bulk: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+/**
+ * Deletes multiple user notifications simultaneously
+ * 
+ * @param req - Express request object with an array of notification IDs to delete in the request body
+ * @param res - Express response object
+ * 
+ * @example
+ * // Input data format:
+ * // {
+ * //   notifications: [1, 2, 3, ...] // array of notification IDs to delete
+ * // }
+ */
+export const deleteUserNotificationsInBulk = async (req: Request, res: Response) => {
+    console.log("Deleting notifications in bulk for user ID:", req.userInfo.user.userId);
+    try {
+        const { notifications } = req.body;
+
+        if (!notifications || !Array.isArray(notifications) || notifications.length === 0) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'Nieprawidłowy format danych. Oczekiwano tablicy identyfikatorów powiadomień.'
+            });
+            return
+        }
+
+        // Sprawdź, czy wszystkie powiadomienia należą do użytkownika
+        const userNotifications = await sql`
+            SELECT id FROM notifications 
+            WHERE "user_id" = ${req.userInfo.user.userId} 
+            AND id IN ${sql(notifications)}
+        `;
+
+        const foundIds = userNotifications.map((n: any) => n.id);
+
+        if (foundIds.length === 0) {
+            res.status(StatusCodes.NOT_FOUND).json({
+                success: false,
+                message: 'Nie znaleziono pasujących powiadomień dla tego użytkownika'
+            });
+            return
+        }
+
+        // Jeśli są jakieś niepasujące powiadomienia, zaloguj ostrzeżenie
+        if (foundIds.length < notifications.length) {
+            console.warn(`Niektóre powiadomienia (${notifications.length - foundIds.length}) nie należą do użytkownika lub nie istnieją`);
+        }
+
+        // Usuń wszystkie znalezione powiadomienia należące do użytkownika
+        await sql`
+            DELETE FROM notifications
+            WHERE "user_id" = ${req.userInfo.user.userId}
+            AND id IN ${sql(foundIds)}
+        `;
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: `Pomyślnie usunięto ${foundIds.length} powiadomień`,
+            deletedIds: foundIds
+        });
+    } catch (error: any) {
+        console.error(`Error deleting user notifications in bulk: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}

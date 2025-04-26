@@ -5,6 +5,7 @@ import swaggerUi from 'swagger-ui-express';
 import fs from 'bun';
 import path from 'path';
 import { createSwaggerSpec } from './docs/swagger-config';
+import { tokenRefresher } from './middleware/authenticate';
 
 import * as Routes from './routes';
 import { SwaggerTheme, SwaggerThemeNameEnum } from 'swagger-themes';
@@ -30,7 +31,11 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use(cookieParser(secretKey));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser(secretKey)); // Musi być przed tokenRefresher!
+
+// Dodanie middleware'u do odświeżania tokenów GLOBALNIE
+app.use(tokenRefresher);
 
 // Generowanie dokumentacji Swagger dla obu języków
 const enSpec = createSwaggerSpec('en');
@@ -103,7 +108,8 @@ app.get('/api-docs', (req, res) => {
 // Routery,
 app.use('/streamers', Routes.streamersRoutes);
 app.use('/auth', Routes.authRoutes);
-app.use('/media', Routes.streamRoutes);
+// app.use('/media', Routes.streamRoutes);
 app.use('/users', Routes.userRoutes);
+app.use('/streams', Routes.streamsRoutes);
 
 export default app;

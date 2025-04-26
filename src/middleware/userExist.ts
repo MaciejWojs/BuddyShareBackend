@@ -4,6 +4,16 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Extend Express Request interface to include userInfo and userInfoOld properties
+declare global {
+    namespace Express {
+        interface Request {
+            userInfo?: any;
+            userInfoOld?: any;
+        }
+    }
+}
+
 /**
  * Middleware that checks if a user exists in the database.
  * 
@@ -31,7 +41,7 @@ export const userExistsMiddleware = async (req: Request, res: Response, next: Ne
             });
             return
         }
-
+        
         const user = await prisma.usersInfo.findUnique({
             where: {
                 username: username
@@ -45,14 +55,17 @@ export const userExistsMiddleware = async (req: Request, res: Response, next: Ne
                 }
             }
         });
-
+        
         if (!user) {
             res.status(StatusCodes.NOT_FOUND).json({
                 message: `User ${username} not found`
             });
             return
         }
-
+        
+        if (req.userInfo){
+            req.userInfoOld = req.userInfo;
+        }
         req.userInfo = user;
         next();
     } catch (error) {

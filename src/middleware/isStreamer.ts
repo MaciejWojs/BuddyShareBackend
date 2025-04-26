@@ -2,6 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { ReasonPhrases, StatusCodes } from 'http-status-codes';
 import { PrismaClient } from '@prisma/client';
 
+declare global {
+    namespace Express {
+        interface Request {
+            token?: string;
+        }
+    }
+}
+
 const prisma = new PrismaClient();
 
 /**
@@ -38,9 +46,9 @@ export const isStreamer = async (req: Request, res: Response, next: NextFunction
             return
         }
         if (req.userInfo === undefined) {
-            console.error("userExistsMiddleware not executed, navigating to", req.originalUrl); 
-
-            return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+            console.error("userExistsMiddleware not executed, navigating to", req.originalUrl);
+            res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+            return
         }
 
         // const user = await prisma.users.findUnique({
@@ -48,11 +56,11 @@ export const isStreamer = async (req: Request, res: Response, next: NextFunction
         //         userId : req.userInfo.userId
         //     }
         // });
-        console.log("USERINFO: ",req.userInfo);
+        console.log("USERINFO: ", req.userInfo);
         const streamer = await prisma.streamers.findUnique({
             where: {
                 userId: req.userInfo.user.userId
-                
+
             }
         });
         if (!streamer) {
@@ -63,9 +71,87 @@ export const isStreamer = async (req: Request, res: Response, next: NextFunction
         }
 
         req.streamer = streamer;
+        console.log("Streamer found: ", streamer);
         next();
     } catch (error) {
         console.error(`Error checking if user exists: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            message: ReasonPhrases.INTERNAL_SERVER_ERROR
+        });
+    }
+}
+
+/**
+ * Middleware that checks if a token is provided in the request query
+ * 
+ * This middleware checks if a token is present in the request query parameters.
+ * If the token is not provided, it sends a 400 Bad Request response.
+ * 
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>} - Asynchronous function that calls next() if token is present
+ * 
+ * @throws {StatusCodes.BAD_REQUEST} - If token is not provided
+ */
+export const hasStreamerToken = async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.query["name"];
+    console.log("hasStreamerToken middleware is being executed");
+    console.log("Token: ", token);
+    if (!token) {
+        console.error("No token provided");
+        res.status(StatusCodes.BAD_REQUEST).json(StatusCodes.BAD_REQUEST);
+        return;
+    }
+    req.token = token as string;
+    next();
+}
+
+/**
+ * Middleware that checks if a token is valid
+ * 
+ * This middleware checks if the provided token is valid by querying the database.
+ * If the token is valid, it attaches the streamer object to the request and calls next().
+ * If the token is invalid, it sends a 401 Unauthorized response.
+ * 
+ * @param {Request} req - Express request object with token property
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>} - Asynchronous function that calls next() if token is valid
+ * 
+ * @throws {StatusCodes.UNAUTHORIZED} - If token is invalid
+ */
+export const isValidStreamerToken = async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.token;
+    console.log("isValidStreamerToken middleware is being executed");
+    if (!token) {
+        console.error("hasStreamerToken middleware not executed!");
+        res.status(StatusCodes.UNAUTHORIZED).json(StatusCodes.UNAUTHORIZED);
+        return;
+    }
+
+    try {
+        const streamer = await prisma.streamers.findUnique({
+            where: {
+                token: token
+            },
+            include: {
+                user: {
+                    include: {
+                        userInfo: true
+                    }
+                }
+            }
+        });
+        if (!streamer) {
+            console.error("Unauthorized access - invalid token, from ip: ", req.ip);
+            res.status(StatusCodes.UNAUTHORIZED).json(StatusCodes.UNAUTHORIZED);
+            return;
+        }
+        req.streamer = streamer;
+        next();
+    } catch (error) {
+        console.error(`Error checking if token is valid: ${error}`);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
             message: ReasonPhrases.INTERNAL_SERVER_ERROR
         });

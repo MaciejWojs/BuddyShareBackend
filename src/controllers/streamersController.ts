@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
+import { sql } from 'bun';
+import axios from 'axios';
+import { transformStreamsData } from '../utils/streams';
 
 const prisma = new PrismaClient();
 
@@ -22,10 +25,16 @@ const prisma = new PrismaClient();
  */
 export const getAllStreamers = async (req: Request, res: Response) => {
     try {
+
         const streamers = await prisma.streamers.findMany({
-            include: {
+            select: {
+                streamerId: true,
+                userId: true,
+                // Celowo pomijamy pole token
                 user: {
-                    select: { userInfo: true, },
+                    select: {
+                        userInfo: true,
+                    },
                 },
             },
         });
@@ -56,11 +65,76 @@ export const getStreamerByUsername = async (req: Request, res: Response) => {
     // and attached the user info to req.userInfo
     // isStreamer middleware has verified the user is a streamer
     // and attached the streamer info to req.streamer
+
+    // Sprawdzamy, czy użytkownik przeglądający stronę jest tym samym streamerem
+    const isOwner = req.user && req.streamer && req.user.userInfo.userInfoId === req.streamer.userId;
     
-    return res.status(StatusCodes.OK).json({
+    // Modyfikujemy zapytanie SQL, aby uwzględnić prywatne streamy, gdy właściciel przegląda
+    const live = await sql`
+                    SELECT *
+                    FROM streams s
+                        JOIN stream_options so ON s.id = so.id
+                    WHERE
+                        s.streamer_id = ${req.streamer.streamerId}
+                        AND so."isLive" = TRUE
+                        ${isOwner ? sql`` : sql`AND so."isPublic" = TRUE`}
+                        AND so."isDeleted" = FALSE
+                    ORDER BY
+                        so.created_at DESC
+                    LIMIT 1;
+                    `;
+
+    console.log("LIVE: ", live);
+    console.log("Is owner viewing: ", isOwner);
+
+    const { token, ...streamerWithoutToken } = req.streamer;
+
+    // Przygotowanie odpowiedzi
+    const response: {
+        userInfo: typeof req.userInfo,
+        streamer: typeof streamerWithoutToken,
+        stream: { urls: any, isOwnerViewing: boolean } | null
+    } = {
         userInfo: req.userInfo,
-        streamer: req.streamer
-    });
+        streamer: streamerWithoutToken,
+        stream: null
+    };
+
+    // Dodaj stream jako osobny klucz, a nie jako część streamera
+    if (live.length > 0) {
+        // Tworzenie podstawowego obiektu stream z dodatkową flagą isOwnerViewing
+        response.stream = {
+            ...live[0],
+            urls: null,
+            isOwnerViewing: isOwner
+        };
+
+        const host = process.env.STREAM_HOST || "http://nginx:8080/api";
+        const endpoint = `${host}/streams`;
+
+        const urls = await axios.get(endpoint);
+        if (urls && urls.data) {
+            // Przekształć dane streamu
+            const transformedStreams = transformStreamsData(urls.data);
+
+            // Filtruj tylko streamy zawierające token streamera w nazwie
+            if (transformedStreams && transformedStreams.streams && Array.isArray(transformedStreams.streams)) {
+                const streamerToken = req.streamer.token;
+                const streamerStreams = transformedStreams.streams.filter((stream: { name: string | any[]; }) =>
+                    stream.name && stream.name.includes(streamerToken)
+                );
+
+                console.log("Found streams for token: ", streamerToken, streamerStreams.length);
+
+                // Dodaj urls jako właściwość obiektu stream
+                response.stream!.urls = streamerStreams.length > 0 ? streamerStreams : null;
+            } else {
+                response.stream!.urls = null;
+            }
+        }
+    }
+
+    res.status(StatusCodes.OK).json(response);
 }
 
 /**
@@ -84,7 +158,7 @@ export const getStreamerModerators = async (req: Request, res: Response) => {
     // The middleware (userExistsMiddleware and isStreamer) has already validated
     // that the streamer exists and attached it to req.streamer
     const streamer = req.streamer;
-    
+
     try {
         const moderators = await prisma.streamModerators.findMany({
             where: {
@@ -134,20 +208,23 @@ export const getStreamerModeratorByUsername = async (req: Request, res: Response
     console.log("Atempting to get streamer moderator by username");
     // If we reach this point, moderator relationship exists and is in req.streamerModerator
     if (req.isStreamerModerator && req.streamerModerator) {
-        return res.status(StatusCodes.OK).json(req.streamerModerator);
+        res.status(StatusCodes.OK).json(req.streamerModerator);
+        return
     }
 
     // If the moderator exists but is not assigned to this streamer
     if (req.isModerator && !req.isStreamerModerator) {
-        return res.status(StatusCodes.NOT_FOUND).json({
+        res.status(StatusCodes.NOT_FOUND).json({
             message: `Moderator is not assigned to this streamer`
         });
+        return
     }
 
     // This is a fallback in case middleware chain is incomplete
-    return res.status(StatusCodes.NOT_FOUND).json({
+    res.status(StatusCodes.NOT_FOUND).json({
         message: ReasonPhrases.NOT_FOUND
     });
+    return
 }
 
 /**
@@ -180,27 +257,32 @@ export const addStreamerModerator = async (req: Request, res: Response) => {
 
     if (isStreamerModerator === undefined) {
         console.error("isStreamerModerator not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (isModerator === undefined) {
         console.error("isModerator not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (streamerREQ === undefined) {
         console.error("isStreamer not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (!streamerUsername || !moderatorUsername) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (streamerModerator && isStreamerModerator) {
         console.log("streamerModerator: ", streamerModerator);
         console.log("isStreamerModerator: ", isStreamerModerator);
         console.log(`${moderatorUsername} is already a ${streamerUsername} moderator`);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     const tempUser = await prisma.usersInfo.findUnique({
         where: {
@@ -208,9 +290,10 @@ export const addStreamerModerator = async (req: Request, res: Response) => {
         }
     })
 
-    if(!tempUser) {
+    if (!tempUser) {
         console.log("There is no user called", moderatorUsername);
-        return res.status(StatusCodes.NOT_FOUND).json({ message: ReasonPhrases.NOT_FOUND });
+        res.status(StatusCodes.NOT_FOUND).json({ message: ReasonPhrases.NOT_FOUND });
+        return
     }
 
     if (!isModerator && !moderator) {
@@ -293,30 +376,36 @@ export const deleteStreamerModerator = async (req: Request, res: Response) => {
 
     if (isStreamerModerator === undefined) {
         console.error("isStreamerModerator not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (isModerator === undefined) {
         console.error("isModerator not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (streamerREQ === undefined) {
         console.error("isStreamer not executed, navigating to", req.originalUrl);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (!streamerUsername || !moderatorUsername) {
         console.log("streamer: ", streamerUsername);
         console.log("moderator: ", moderatorUsername);
         console.log("streamer or moderator username not found");
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (!isModerator && !moderator) {
         console.log(`${moderatorUsername} is not a moderator`);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
     if (!streamerModerator && !isStreamerModerator) {
         console.log(`${moderatorUsername} is not a ${streamerUsername} moderator`);
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
     }
 
     if (streamerModerator && isStreamerModerator) {
@@ -334,7 +423,8 @@ export const deleteStreamerModerator = async (req: Request, res: Response) => {
             console.log("MODERATOR-RECORD: ", moderatorRecord);
 
             if (!moderatorRecord) {
-                return res.status(StatusCodes.NOT_FOUND).json({ message: "Moderator record not found" });
+                res.status(StatusCodes.NOT_FOUND).json({ message: "Moderator record not found" });
+                return
             }
 
             await prisma.streamModerators.delete({
@@ -361,10 +451,59 @@ export const deleteStreamerModerator = async (req: Request, res: Response) => {
             });
 
             console.log("MODERATORS-FINAL: ", moderators);
-            return res.status(StatusCodes.OK).json(moderators);
+            res.status(StatusCodes.OK).json(moderators);
         } catch (error) {
             console.error('Error deleting moderator:', error);
             res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
         }
     }
+}
+
+/**
+ * Fetches the token for a streamer.
+ * 
+ * This controller function retrieves the token associated with the authenticated 
+ * streamer from the request object and returns it in the response.
+ *
+ * @param {Request} req - The Express request object containing user and streamer information.
+ * @param {Response} res - The Express response object used to send the token back to the client.
+ * @returns {void}
+ *
+ * @remarks
+ * Expects the streamer token to be available in `req.streamer.token` and user information in `req.userInfo`.
+ * Returns a JSON object with the token and a 200 OK status code.
+ */
+export const getStreamerToken = async (req: Request, res: Response) => {
+    console.log("Getting streamer token for", req.userInfo.username);
+    res.status(StatusCodes.OK).json({
+        token: req.streamer.token,
+    });
+
+    return;
+}
+
+export const updateStreamerToken = async (req: Request, res: Response) => {
+    console.log("Updating streamer token for", req.userInfo.username);
+    const streamer = req.streamer;
+    const updatedToken = require('crypto').randomBytes(64).toString('hex');
+
+    try {
+        const updatedStreamer = await prisma.streamers.update({
+            where: {
+                streamerId: streamer.streamerId,
+            },
+            data: {
+                token: updatedToken,
+            },
+        });
+
+        res.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            token: updatedToken,
+        });
+    } catch (error) {
+        console.error('Error updating streamer token:', error);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+    }
+    return;
 }

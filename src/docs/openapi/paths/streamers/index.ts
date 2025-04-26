@@ -387,6 +387,146 @@ export const streamersPathsEN = {
         }
       }
     }
+  },
+  '/streamers/{username}/token': {
+    get: {
+      tags: ['Streamers'],
+      summary: 'Get streamer token',
+      description: 'Returns the token for the authenticated streamer',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the streamer',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Streamer token',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  token: {
+                    type: 'string',
+                    description: 'Streamer authentication token'
+                  }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '403': {
+          description: 'Forbidden - not a streamer or not the resource owner',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'User not found or not a streamer',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    patch: {
+      tags: ['Streamers'],
+      summary: 'Update streamer token',
+      description: 'Generates a new token for the streamer',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the streamer',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Token updated successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: {
+                    type: 'string',
+                    example: 'OK'
+                  },
+                  token: {
+                    type: 'string',
+                    description: 'New streamer authentication token'
+                  }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '403': {
+          description: 'Forbidden - not a streamer',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Streamer not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -763,6 +903,146 @@ export const streamersPathsPL = {
         },
         '404': {
           description: 'Nie znaleziono streamera, moderatora lub relacji',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/streamers/{username}/token': {
+    get: {
+      tags: ['Streamerzy'],
+      summary: 'Pobierz token streamera',
+      description: 'Zwraca token dla uwierzytelnionego streamera',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika streamera',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Token streamera',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  token: {
+                    type: 'string',
+                    description: 'Token uwierzytelniający streamera'
+                  }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '403': {
+          description: 'Zabroniony - nie jesteś streamerem lub nie jesteś właścicielem zasobu',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono użytkownika lub nie jest streamerem',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    patch: {
+      tags: ['Streamerzy'],
+      summary: 'Zaktualizuj token streamera',
+      description: 'Generuje nowy token dla streamera',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika streamera',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Token zaktualizowany pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  message: {
+                    type: 'string',
+                    example: 'OK'
+                  },
+                  token: {
+                    type: 'string',
+                    description: 'Nowy token uwierzytelniający streamera'
+                  }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '403': {
+          description: 'Zabroniony - nie jesteś streamerem',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono streamera',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }

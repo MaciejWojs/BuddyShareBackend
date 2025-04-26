@@ -23,9 +23,13 @@ model Users {
   streamer  Streamers?  @relation("UserStreamer")
   moderator Moderators? @relation("UserModerator")
 
+  following Followers[] @relation("Follower")
+  followers Followers[] @relation("Followed")
+
   notifications Notifications[]
   subscribers   Subscribers[]
   chatMessages  ChatMessages[]
+  refreshTokens RefreshToken[]
   // userPermissions UserPermissions[]
 
   @@map("users")
@@ -58,6 +62,19 @@ model UserSettings {
   user Users? @relation("User_UserSettings")
 
   @@map("user_settings")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  userId      Int      @map("user_id")
+  expiresAt   DateTime @map("expires_at")
+  issuedAt    DateTime @default(now()) @map("issued_at")
+  invalidated Boolean  @default(false)
+
+  user Users @relation(fields: [userId], references: [userId])
+
+  @@map("refresh_tokens")
 }
 
 // model UserRoles {
@@ -106,8 +123,9 @@ model UserSettings {
 // }
 
 model Streamers {
-  streamerId Int @id @default(autoincrement()) @map("id")
-  userId     Int @unique @map("user_id")
+  streamerId Int    @id @default(autoincrement()) @map("id")
+  userId     Int    @unique @map("user_id")
+  token      String @unique @map("access_token")
 
   user        Users              @relation("UserStreamer", fields: [userId], references: [userId])
   streams     Streams[]
@@ -158,8 +176,8 @@ model ChatMessages {
   streamId      Int      @map("stream_id")
   userId        Int      @map("user_id")
   message       String
-  createdAt     DateTime @map("created_at")
-  isDeleted     Boolean  @map("is_deleted")
+  createdAt     DateTime @default(now()) @map("created_at")
+  isDeleted     Boolean  @default(false) @map("is_deleted")
 
   stream Streams @relation(fields: [streamId], references: [streamId])
   user   Users   @relation(fields: [userId], references: [userId])
@@ -169,13 +187,14 @@ model ChatMessages {
 
 model StreamOptions {
   streamOptionId Int       @id @default(autoincrement()) @map("id")
-  title          String
-  description    String
-  createdAt      DateTime  @map("created_at")
-  updatedAt      DateTime  @map("updated_at")
-  thumbnail      String
-  isDeleted      Boolean
-  isLive         Boolean
+  title          String    @default("Sample Title")
+  description    String    @default("Sample Description")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  thumbnail      String?
+  isDeleted      Boolean   @default(false)
+  isLive         Boolean   @default(true)
+  isPublic       Boolean   @default(false)
   path           String?
   Streams        Streams[]
 
@@ -227,8 +246,8 @@ model Notifications {
   userId         Int      @map("user_id")
   streamId       Int?     @map("stream_id")
   message        String
-  createdAt      DateTime @map("created_at")
-  isRead         Boolean
+  createdAt      DateTime @default(now()) @map("created_at")
+  isRead         Boolean  @default(false)
 
   user   Users    @relation(fields: [userId], references: [userId])
   stream Streams? @relation(fields: [streamId], references: [streamId])
@@ -245,4 +264,17 @@ model Subscribers {
   streamer Streamers @relation(fields: [streamerId], references: [streamerId])
 
   @@map("subscribers")
+}
+
+model Followers {
+  followerId     Int @id @default(autoincrement()) @map("id")
+  followerUserId Int @map("follower_user_id")
+  followedUserId Int @map("followed_user_id")
+
+  // Relacje
+  follower Users @relation("Follower", fields: [followerUserId], references: [userId])
+  followed Users @relation("Followed", fields: [followedUserId], references: [userId])
+
+  @@unique([followerUserId, followedUserId]) // Unikalna kombinacja follower + followed
+  @@map("followers")
 }

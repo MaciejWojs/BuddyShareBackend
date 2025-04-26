@@ -4,9 +4,15 @@ import * as EmailValidator from 'email-validator';
 import jwt from 'jsonwebtoken';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { getPasswordHash } from '../utils/hash';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
-const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || '';
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+if (!JWT_ACCESS_SECRET || !JWT_REFRESH_SECRET) {
+    throw new Error('JWT secrets are not defined in the environment variables');
+}
 
 /**
  * Authenticates a user and creates a JWT token.
@@ -48,10 +54,17 @@ export const login = async (req: Request, res: Response) => {
                 }
             },
             include: {
-                userInfo: true
+                userInfo: true,
+                userSettings: {
+                    select: {
+                        userSettingsId: true,
+                        notificationsEnabled: true,
+                        darkMode: true,
+                    }
+                }
             }
         });
-
+        console.log(prismaUser);
         if (prismaUser) {
             if (prismaUser.userInfo.isBanned) {
                 console.log("User is banned");
@@ -62,15 +75,59 @@ export const login = async (req: Request, res: Response) => {
                 });
                 return;
             }
-            const { ...user } = prismaUser;
+
+            const user = prismaUser;
             console.log("User found:", user.userInfo.username);
-            const token = jwt.sign(user, JWT_ACCESS_SECRET, { expiresIn: "1h" });
-            res.cookie('JWT', token, { signed: true, httpOnly: true, secure: true })
-                .status(StatusCodes.OK)
-                .json({
-                    success: true,
-                    message: 'Authentication successful'
-                });
+            console.log("USER  SAVED:", user);
+
+            // Generuj access token (krótkotrwały)
+            const accessToken = jwt.sign(user, JWT_ACCESS_SECRET, {
+                expiresIn: "15m"
+            });
+
+            // Dane JWT dla refresh tokena (zawierają tylko niezbędne informacje)
+            const refreshTokenPayload = {
+                userId: user.userId,
+                tokenVersion: Date.now() // Dodajemy timestamp jako wersję tokena
+            };
+
+            // Generuj refresh token (długotrwały) jako JWT
+            const refreshToken = jwt.sign(refreshTokenPayload, JWT_REFRESH_SECRET, {
+                expiresIn: "7d"
+            });
+
+            // Oblicz datę wygaśnięcia (7 dni od teraz)
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 7);
+
+            // Zapisz refresh token w bazie danych
+            await prisma.refreshToken.create({
+                data: {
+                    token: refreshToken,
+                    userId: user.userId,
+                    expiresAt
+                }
+            });
+
+            // Ustaw ciasteczka z tokenami
+            res.cookie('JWT', accessToken, {
+                signed: true,
+                httpOnly: true,
+                secure: true,
+                maxAge: 15 * 60 * 1000 // 15 minut w milisekundach
+            });
+
+            res.cookie('refresh_token', refreshToken, {
+                signed: true,
+                httpOnly: true,
+                secure: true,
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dni w milisekundach
+            });
+
+            res.status(StatusCodes.OK).json({
+                success: true,
+                message: 'Authentication successful'
+            });
         } else {
             res.status(StatusCodes.UNAUTHORIZED).json({
                 success: false,
@@ -104,7 +161,7 @@ export const login = async (req: Request, res: Response) => {
  * - 409 Conflict if username or email already exists (with 'cause' field indicating which one)
  * - 500 Internal Server Error if hash generation fails or database operation throws an error
  */
-export const register = async (req: Request, res: Response) => {
+ export const register = async (req: Request, res: Response) => {
     console.log("Registering user...");
     const { username, email, password }: { username: string, email: string, password: string } = req.body;
     // console.log("Username: " + username);
@@ -218,7 +275,7 @@ export const register = async (req: Request, res: Response) => {
  * 
  * @returns {Promise<void>} - Doesn't return a value, but sends a JSON response with user data
  */
-export const getMe = async (req: Request, res: Response) => {
+ export const getMe = async (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json(req.user);
 };
 
@@ -230,8 +287,24 @@ export const getMe = async (req: Request, res: Response) => {
  * 
  * @returns {void} - Doesn't return a value, but clears the JWT cookie and sends a success response
  */
-export const logout = (req: Request, res: Response) => {
+ export const logout = async (req: Request, res: Response) => {
+    const refreshToken = req.signedCookies['refresh_token'];
+
+    // Unieważnij refresh token w bazie danych, jeśli istnieje
+    if (refreshToken) {
+        try {
+            await prisma.refreshToken.updateMany({
+                where: { token: refreshToken },
+                data: { invalidated: true }
+            });
+        } catch (error) {
+            console.error("Error invalidating refresh token:", error);
+        }
+    }
+
+    // Wyczyść oba ciasteczka
     res.clearCookie('JWT')
+        .clearCookie('refresh_token')
         .status(StatusCodes.OK)
         .json({
             success: true,
@@ -249,10 +322,166 @@ export const logout = (req: Request, res: Response) => {
  * 
  * @returns {void} - Doesn't return a value, but sends a JSON response with user data for testing
  */
-export const test = (req: Request, res: Response) => {
+ export const test = (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json({
         success: true,
         message: 'Authentication test successful',
         user: req.user
     });
+};
+
+/**
+ * Refreshes the access token using a valid JWT refresh token.
+ * 
+ * This function verifies the refresh token, generates a new access token,
+ * and optionally rotates the refresh token for enhanced security.
+ * 
+ * @param req - Express request object containing the refresh token in cookies
+ * @param res - Express response object used to send the appropriate response
+ * 
+ * @returns {Promise<void>} - Sends a new access token as an HTTP-only cookie
+ */
+export const refreshToken = async (req: Request, res: Response) => {
+    const refreshToken = req.signedCookies['refresh_token'];
+    if (!refreshToken) {
+        res.status(StatusCodes.UNAUTHORIZED).json({
+            success: false,
+            message: 'No refresh token provided'
+        });
+        return;
+    }
+
+    try {
+        // Weryfikuj refresh token używając JWT
+        const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || '';
+
+        if (!JWT_REFRESH_SECRET) {
+            console.error('JWT_REFRESH_SECRET is not defined');
+            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+                success: false,
+                message: 'Internal server error'
+            });
+            return;
+        }
+
+        // Weryfikacja JWT refresh tokena
+        const decodedToken = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as {
+            userId: number;
+            tokenVersion: number;
+        };
+
+        // Sprawdź czy token istnieje w bazie danych
+        const tokenRecord = await prisma.refreshToken.findUnique({
+            where: {
+                token: refreshToken
+            }
+        });
+
+        if (!tokenRecord || tokenRecord.invalidated) {
+            res.status(StatusCodes.UNAUTHORIZED).json({
+                success: false,
+                message: 'Invalid refresh token'
+            });
+            return;
+        }
+
+        // Sprawdź czy token nie wygasł
+        if (new Date() > tokenRecord.expiresAt) {
+            // Oznacz token jako unieważniony
+            await prisma.refreshToken.update({
+                where: { id: tokenRecord.id },
+                data: { invalidated: true }
+            });
+
+            res.status(StatusCodes.UNAUTHORIZED).json({
+                success: false,
+                message: 'Refresh token expired'
+            });
+            return;
+        }
+
+        // Pobierz dane użytkownika
+        const user = await prisma.users.findUnique({
+            where: { userId: decodedToken.userId },
+            include: { userInfo: true }
+        });
+
+        if (!user) {
+            res.status(StatusCodes.UNAUTHORIZED).json({
+                success: false,
+                message: 'User not found'
+            });
+            return;
+        }
+
+        // Generuj nowy access token
+        const accessToken = jwt.sign(user, JWT_ACCESS_SECRET, { expiresIn: "15m" });
+
+        // Opcjonalnie: rotacja refresh tokena (zwiększone bezpieczeństwo)
+        const newRefreshTokenPayload = {
+            userId: user.userId,
+            tokenVersion: Date.now()
+        };
+
+        const newRefreshToken = jwt.sign(newRefreshTokenPayload, JWT_REFRESH_SECRET, {
+            expiresIn: "7d"
+        });
+
+        // Oblicz nową datę wygaśnięcia
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        // Oznacz poprzedni token jako unieważniony i stwórz nowy
+        await prisma.refreshToken.update({
+            where: { id: tokenRecord.id },
+            data: { invalidated: true }
+        });
+
+        await prisma.refreshToken.create({
+            data: {
+                token: newRefreshToken,
+                userId: user.userId,
+                expiresAt
+            }
+        });
+
+        // Ustaw ciasteczka z nowymi tokenami
+        res.cookie('JWT', accessToken, {
+            signed: true,
+            httpOnly: true,
+            secure: true,
+            maxAge: 15 * 60 * 1000 // 15 minut
+        });
+
+        res.cookie('refresh_token', newRefreshToken, {
+            signed: true,
+            httpOnly: true,
+            secure: true,
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dni
+        });
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: 'Token refreshed successfully'
+        });
+        return;
+
+    } catch (error) {
+        console.error("Error refreshing token:", error);
+
+        // Obsługa błędu weryfikacji JWT
+        if (error instanceof jwt.JsonWebTokenError) {
+            res.status(StatusCodes.UNAUTHORIZED).json({
+                success: false,
+                message: 'Invalid refresh token'
+            });
+            return;
+        }
+
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: 'Internal server error during token refresh'
+        });
+        return;
+    };
 };
