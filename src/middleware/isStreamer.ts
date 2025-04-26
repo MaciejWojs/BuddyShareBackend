@@ -56,11 +56,18 @@ export const isStreamer = async (req: Request, res: Response, next: NextFunction
         //         userId : req.userInfo.userId
         //     }
         // });
-        console.log("USERINFO: ", req.userInfo);
+        // console.log("USERINFO: ", req.userInfo);
         const streamer = await prisma.streamers.findUnique({
             where: {
                 userId: req.userInfo.user.userId
 
+            },
+            include: {
+                user: {
+                    include: {
+                        userInfo: true
+                    }
+                }
             }
         });
         if (!streamer) {
@@ -71,7 +78,7 @@ export const isStreamer = async (req: Request, res: Response, next: NextFunction
         }
 
         req.streamer = streamer;
-        console.log("Streamer found: ", streamer);
+        // console.log("Streamer found: ", streamer);
         next();
     } catch (error) {
         console.error(`Error checking if user exists: ${error}`);

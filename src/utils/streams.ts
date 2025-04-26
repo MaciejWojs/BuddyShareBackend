@@ -34,7 +34,6 @@ export const transformStreamsData = (data: any) => {
                     dash: `${host}/dash/test/${liveName}_360p.mpd`
                 }
             ],
-            active: true,
             // clients: stream.nclients || 0
         };
         result.streams.push(streamInfo);

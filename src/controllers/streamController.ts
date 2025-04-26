@@ -4,19 +4,159 @@ import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import axios from 'axios';
 import { sql } from 'bun';
 import { transformStreamsData } from '../utils/streams';
+import { broadcastNewStream, broadcastStream as broadcastStream, broadcastStreamEnd } from '../socket';
+import { console } from 'node:inspector';
 
 const prisma = new PrismaClient();
 const host = process.env.STREAM_HOST || "http://nginx:8080/api";
 
+interface StreamData {
+    access_token: any;
+    stream_urls?: any;
+    [key: string]: any;
+}
+
+interface StreamWithUrls extends StreamData {
+    stream_urls: any;
+}
+
+const helperCombineStreams = async (streamerId: number | null = null) => {
+    const endpoint = `${host}/streams`;
+    try {
+        const streams = await sql`
+        SELECT  s.*, str.access_token, so.description as stream_description, so.*, c.name as category_name, ui.*, 
+        array_agg(DISTINCT t.name) FILTER (WHERE t.name IS NOT NULL) as tags
+        FROM streams s
+        JOIN stream_options so ON s.options_id = so.id
+        JOIN streamers str ON s.streamer_id = str.id
+        JOIN users_info ui ON str.user_id = ui.id
+        LEFT JOIN streams_categories sc ON s.id = sc.stream_id
+        LEFT JOIN categories c ON sc.category_id = c.id
+        LEFT JOIN streams_tags stg ON s.id = stg.stream_id
+        LEFT JOIN tags t ON stg.tag_id = t.id
+        WHERE so."isLive" = TRUE
+        AND so."isDeleted" = FALSE
+        AND so."isPublic" = TRUE
+        ${streamerId ? sql`AND str.id = ${streamerId}` : sql``}
+        GROUP BY s.id, so.id, c.name, ui.id, str.access_token
+        ORDER BY so.created_at DESC
+        `;
+
+        if (streams.length === 0) {
+            console.log('No streams found');
+            return [];
+        }
+
+        // Pobierz dane streamów z zewnętrznego API
+        const response = await axios.get(endpoint);
+        const simplifiedStreams = transformStreamsData(response.data);
+
+        // Łączenie danych z bazy danych z danymi z API
+        const combinedStreams = streams
+            .map((stream: { access_token: any; }) => {
+                // Szukamy pasujących streamów z API po tokenie dostępu
+                const apiStreamData = simplifiedStreams.streams?.find(
+                    (apiStream: { name: any; }) => apiStream.name === stream.access_token
+                );
+
+                // Jeśli nie znaleziono pasującego streamu w API lub nie zawiera właściwości qualities,
+                // pomijamy ten stream
+                if (!apiStreamData || !apiStreamData.qualities) {
+                    return [];
+                }
+
+                // Tworzymy nowy obiekt bez tokena dostępu
+                const streamWithoutToken: StreamWithUrls = {
+                    ...stream,
+                    stream_urls: undefined
+                };
+
+                // Usuwamy token dostępu
+                delete streamWithoutToken.access_token;
+                delete streamWithoutToken.email;
+
+                // Dodajemy linki do streamów
+                streamWithoutToken.stream_urls = apiStreamData.qualities;
+
+                return streamWithoutToken;
+            })
+            .filter((stream: null) => stream !== null); // Filtrujemy, aby usunąć streamy bez linków
+            console.log("Combined streams: ", combinedStreams.length);
+            return combinedStreams;
+    }
+    catch (error) {
+        console.error('Error fetching streams:', error);
+    }
+    return [];
+}
+
 export const getAllStreams = async (_req: Request, res: Response) => {
     const endpoint = `${host}/streams`;
     try {
-        const response = await axios.get(endpoint);
+        // const streams = await sql`
+        // SELECT  s.*, str.access_token, so.description as stream_description, so.*, c.name as category_name, ui.*, 
+        //        array_agg(DISTINCT t.name) FILTER (WHERE t.name IS NOT NULL) as tags
+        // FROM streams s
+        // JOIN stream_options so ON s.options_id = so.id
+        // JOIN streamers str ON s.streamer_id = str.id
+        // JOIN users_info ui ON str.user_id = ui.id
+        // LEFT JOIN streams_categories sc ON s.id = sc.stream_id
+        // LEFT JOIN categories c ON sc.category_id = c.id
+        // LEFT JOIN streams_tags stg ON s.id = stg.stream_id
+        // LEFT JOIN tags t ON stg.tag_id = t.id
+        // WHERE so."isLive" = TRUE
+        // AND so."isDeleted" = FALSE
+        // AND so."isPublic" = TRUE
+        // GROUP BY s.id, so.id, c.name, ui.id, str.access_token
+        // ORDER BY so.created_at DESC
+        // `;
+        // if (streams.length === 0) {
+        //     res.status(StatusCodes.NOT_FOUND).json({ error: 'No streams found' });
+        //     return;
+        // }
 
-        // Przekształcenie oryginalnego JSON na uproszczony format
-        const simplifiedStreams = transformStreamsData(response.data);
+        // // Pobierz dane streamów z zewnętrznego API
+        // const response = await axios.get(endpoint);
+        // const simplifiedStreams = transformStreamsData(response.data);
 
-        res.status(StatusCodes.OK).json(simplifiedStreams);
+        // // Łączenie danych z bazy danych z danymi z API
+        // const combinedStreams = streams
+        //     .map((stream: { access_token: any; }) => {
+        //         // Szukamy pasujących streamów z API po tokenie dostępu
+        //         const apiStreamData = simplifiedStreams.streams?.find(
+        //             (apiStream: { name: any; }) => apiStream.name === stream.access_token
+        //         );
+
+        //         // Jeśli nie znaleziono pasującego streamu w API lub nie zawiera właściwości qualities,
+        //         // pomijamy ten stream
+        //         if (!apiStreamData || !apiStreamData.qualities) {
+        //             return null;
+        //         }
+
+        //         // Tworzymy nowy obiekt bez tokena dostępu
+        //         const streamWithoutToken: StreamWithUrls = {
+        //             ...stream,
+        //             stream_urls: undefined
+        //         };
+
+        //         // Usuwamy token dostępu
+        //         delete streamWithoutToken.access_token;
+        //         delete streamWithoutToken.email;
+
+        //         // Dodajemy linki do streamów
+        //         streamWithoutToken.stream_urls = apiStreamData.qualities;
+
+        //         return streamWithoutToken;
+        //     })
+        //     .filter((stream: null) => stream !== null); // Filtrujemy, aby usunąć streamy bez linków
+
+        // if (combinedStreams.length === 0) {
+        //     res.status(StatusCodes.NOT_FOUND).json({ error: 'No active streams found' });
+        //     return;
+        // }
+        const combinedStreams = await helperCombineStreams();
+
+        res.status(StatusCodes.OK).json(combinedStreams);
     } catch (error) {
         console.error('Error fetching streams:', error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: ReasonPhrases.INTERNAL_SERVER_ERROR });
@@ -26,67 +166,104 @@ export const getAllStreams = async (_req: Request, res: Response) => {
 
 export const notifyStreamStart = async (req: Request, res: Response) => {
     console.log('notifyStreamStart endpoint hit');
+
     const streamerId = req.streamer.streamerId;
-    console.log(`Streamer ID: ${streamerId}`);
+    const username = req.streamer.user.userInfo.username;
 
-    const count = await getStreamerStreamsCount(streamerId);
-
-    if (count[0] != 0) {
-        res.status(StatusCodes.BAD_REQUEST).json({ error: 'Streamer is already live' });
-        console.log(`${req.streamer.user.userInfo.username} is already live`);
+    // 1. Sprawdź, czy streamer już nadaje
+    const [{ count }] = await sql`
+    SELECT COUNT(*) AS count
+      FROM streams s
+      JOIN stream_options o ON s.options_id = o.id
+     WHERE s.streamer_id = ${streamerId}
+       AND o."isLive" = TRUE
+  `;
+    if (count > 0) {
+        console.log(`${username} is already live`);
+        res.status(StatusCodes.BAD_REQUEST)
+            .json({ error: 'Streamer is already live' });
         return;
     }
 
-    const streamOptions = await sql`
-    INSERT INTO stream_options (
-      id,
-      title,
-      description,
-      created_at,
-      updated_at,
-      thumbnail,
-      "isDeleted",
-      "isLive",
-      "isPublic",
-      path
-    )
-    VALUES (
-      DEFAULT,
-      'Sample title',
-      'Sample description',
-      DEFAULT,
-      DEFAULT,
-      NULL,
-      false,
-      true,
-      DEFAULT,
-      NULL
-    )
-    RETURNING *`;
+    try {
+        const [opts, stream, notifications] = await sql.begin(async (sql) => {
+            // 2.1. INSERT do stream_options (uproszczony)
+            const [opts] = await sql`
+              INSERT INTO stream_options (
+                  title,
+                  description,
+                  "isLive"
+              ) VALUES (
+                  'Sample title',
+                  'Sample description',
+                  TRUE
+              ) RETURNING id, title, description
+          `;
 
-    console.log(streamOptions[0]);
-
-    const stream = await sql`
-    INSERT INTO streams (
-      id, 
-      streamer_id,
-      options_id) VALUES (default, ${streamerId}, ${streamOptions[0].id})
-    RETURNING *`;
+            // 2.2. INSERT do streams
+            const [stream] = await sql`
+              INSERT INTO streams (streamer_id, options_id)
+              VALUES (${streamerId}, ${opts.id})
+              RETURNING id
+          `;
+            res.sendStatus(StatusCodes.OK);
 
 
-    const subscribers = await sql`select * from subscribers s join users u on u.id = s.user_id join users_info ui on u.id = ui.id where s.streamer_id = ${streamerId} and ui."isBanned" = false`;
+            // 2.3. Naprawiony INSERT do notifications
+            const subscribers = await sql`
+            SELECT s.user_id
+            FROM subscribers s
+            JOIN users_info ui ON ui.id = s.user_id
+            WHERE s.streamer_id = ${streamerId}
+              AND ui."isBanned" = FALSE
+          `;
 
-    for (const subscriber of subscribers) {
-        const notification = await sql` insert into notifications (id, user_id, stream_id, message, created_at, "isRead")
-        values (default, ${subscriber.user_id}, ${stream[0].id}, ${req.streamer.user.userInfo.username + ' started streaming!'}, default, default)
-        returning *`;
-        console.log(notification[0]);
-        // console.log(subscriber);
+            if (subscribers.length === 0) {
+                console.log('No subscribers found for this streamer');
+                return [opts, stream, []]; // Zwróć pustą tablicę powiadomień
+            }
+
+            // 2. Przygotuj dane do hurtowego INSERT-a
+            const notificationsData = subscribers.map((sub: { user_id: any; }) => ({
+                user_id: sub.user_id,
+                stream_id: stream.id,
+                message: `${username || 'Streamer'} started streaming!`,
+            }));
+
+            // 3. Hurtowy insert używając sql([...])
+            const notifications = await sql`
+            INSERT INTO notifications ${sql(notificationsData)}
+            RETURNING *
+          `;
+
+            return [opts, stream, notifications];
+        });
+        // console.log('Inserted stream_options:', opts);
+        // console.log('Inserted stream:', stream);
+        // console.log(`Created ${notifications.length} notifications`);
+
+        // 3. Wyślij powiadomienia przez Socket.IO
+        await broadcastNewStream(
+            {
+                streamId: stream.id,
+                streamerId,
+                streamerName: username,
+                title: opts.title,
+                description: opts.description,
+                category: 'default',
+            },
+            notifications
+        );
+
+        console.log(`${username} started streaming ▶️`);
+        return
+    } catch (error) {
+        console.error('Transaction error:', error);
+        res
+            .status(StatusCodes.INTERNAL_SERVER_ERROR)
+            .json({ error: 'Internal server error' });
+        return
     }
-
-    res.sendStatus(StatusCodes.OK);
-    console.log(`${req.streamer.user.userInfo.username} started streaming ▶️`);
-    return;
 }
 
 export const notifyStreamEnd = async (req: Request, res: Response) => {
@@ -111,6 +288,14 @@ export const notifyStreamEnd = async (req: Request, res: Response) => {
       AND s.streamer_id = ${streamerId}
       AND so."isLive" = true
     RETURNING so.*`;
+
+    broadcastStreamEnd(
+        {
+            streamId: streamOptions[0].id,
+            streamerId: streamerId,
+            streamerName: req.streamer.user.userInfo.username,
+        },
+    )
 
 
     console.log(`${req.streamer.user.userInfo.username} finished streaming. ⏹️`);
@@ -179,6 +364,9 @@ export const patchStream = async (req: Request, res: Response) => {
     WHERE id = ${streamOptionId}
     RETURNING *;
 `
+    const combinedStreams = await helperCombineStreams(streamerId);
+
+    broadcastStream(combinedStreams[0]);
     if (stream.length === 0) {
         res.status(StatusCodes.NOT_FOUND).json({ error: 'Stream not found' });
         return;

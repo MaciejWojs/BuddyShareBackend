@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { StatusCodes } from 'http-status-codes';
 import { PrismaClient, Role } from '@prisma/client';
+import { Socket } from 'socket.io';
 
 const prisma = new PrismaClient();
 
@@ -27,11 +28,11 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
     if (req.newAccessToken) {
         console.warn("New access token generated, skipping authentication middleware");
-        return next(); 
+        return next();
     }
 
     const token = req.signedCookies['JWT'];
-    console.log("Authenticating user with token:", token);
+    // console.log("Authenticating user with token:", token);
 
     if (!token) {
         console.error("No token provided");
@@ -45,8 +46,8 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
             res.sendStatus(StatusCodes.UNAUTHORIZED);
             return;
         }
-        console.log("User authenticated:", user.userInfo.username);
-        console.log("User data:", user);
+        // console.log("User authenticated:", user.userInfo.username);
+        // console.log("User data:", user);
         req.user = user;
         next();
     });
@@ -74,7 +75,7 @@ export const optionalAuthenticate = (req: Request, res: Response, next: NextFunc
 
     if (req.newAccessToken) {
         console.warn("New access token generated, skipping optionalAuthenticate middleware");
-        return next(); 
+        return next();
     }
 
     const token = req.signedCookies['JWT'];
@@ -129,48 +130,6 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction): void =
 
     next();
 }
-
-// /**
-//  * Middleware that verifies if the authenticated user is a registered streamer
-//  * 
-//  * This middleware checks the database to confirm whether the current user 
-//  * has a record in the streamers table, indicating they have streamer status.
-//  * 
-//  * @param {Request} req - Express request object containing the authenticated user
-//  * @param {Response} res - Express response object
-//  * @param {NextFunction} next - Express next function
-//  * @returns {Promise<void>} - Asynchronous function that calls next() if authorized
-//  * 
-//  * @throws {StatusCodes.UNAUTHORIZED} - If no user is authenticated
-//  * @throws {StatusCodes.FORBIDDEN} - If user is not registered as a streamer
-//  * 
-//  * @example
-//  * // Usage in a route definition:
-//  * router.post('/stream', authenticate, isStreamer, streamController.startStream);
-//  */
-// export const isStreamer = async (req: Request, res: Response, next: NextFunction) => {
-//     const user = req.user;
-//     if (!user) {
-//         console.error("User not found");
-//         res.sendStatus(StatusCodes.UNAUTHORIZED);
-//         return;
-//     }
-
-//     const isStreamer = await prisma.streamers.findUnique({
-//         where: {
-//             userId: user.userId
-//         }
-//     });
-
-//     if (!isStreamer) {
-//         console.error("User is not a streamer");
-//         res.sendStatus(StatusCodes.FORBIDDEN);
-//         return;
-//     }
-
-//     next();
-// }
-
 
 /**
  * Middleware that ensures a user can only access their own resources
@@ -343,5 +302,60 @@ export const tokenRefresher = async (req: Request, res: Response, next: NextFunc
     } catch (err) {
         console.error("Token refresh failed with error:", err);
         return next();
+    }
+};
+
+export const socketAuthMiddleware = (socket: Socket, next: (err?: Error) => void) => {
+    console.warn("Socket authentication middleware is being executed");
+    const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+    
+    if (!JWT_ACCESS_SECRET) {
+        console.error("JWT_ACCESS_SECRET is not defined");
+        return next(new Error('Server configuration error'));
+    }
+    
+    // Get token from auth or cookie
+    let token = socket.handshake.auth.token;
+    
+    // If no token in auth, try to extract from cookies
+    if (!token && socket.handshake.headers.cookie) {
+        const cookie = require('cookie');
+        const cookieStr = socket.handshake.headers.cookie;
+        const parsedCookies = cookie.parse(cookieStr);
+        
+        if (parsedCookies.JWT) {
+            // Format token: s:JWT.SIGNATURE
+            const rawToken = parsedCookies.JWT;
+            // console.log("Socket token found:", rawToken);
+            
+            if (rawToken.startsWith('s:')) {
+                // Extract the actual JWT part (between 's:' and the last period)
+                const tokenParts = rawToken.substring(2).split('.');
+                
+                // Regular JWT has 3 parts (header.payload.signature)
+                if (tokenParts.length >= 3) {
+                    // Reconstruct proper JWT format: header.payload.signature
+                    token = tokenParts.slice(0, 3).join('.');
+                }
+            } else {
+                token = rawToken;
+            }
+        }
+    }
+    
+    if (!token) {
+        console.error("No authentication token provided");
+        return next(new Error('Authentication error'));
+    }
+    
+    try {
+        console.warn("Verifying socket token");
+        const decoded = jwt.verify(token, JWT_ACCESS_SECRET);
+        socket.data.user = decoded;
+        console.warn("Socket token verified successfully");
+        next();
+    } catch (err) {
+        console.error("Socket token verification failed:", err);
+        next(new Error('Authentication error'));
     }
 };
