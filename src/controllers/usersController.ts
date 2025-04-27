@@ -673,7 +673,7 @@ export const getUserNotifications = async (req: Request, res: Response) => {
             WHERE "user_id" = ${req.userInfo.user.userId}
         `;
 
-        console.log("Notifications: ", notifications);
+        // console.log("Notifications: ", notifications);
         res.status(StatusCodes.OK).json(notifications);
     }
     catch (error: any) {

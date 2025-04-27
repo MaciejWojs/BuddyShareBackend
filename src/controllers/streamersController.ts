@@ -84,8 +84,8 @@ export const getStreamerByUsername = async (req: Request, res: Response) => {
                     LIMIT 1;
                     `;
 
-    console.log("LIVE: ", live);
-    console.log("Is owner viewing: ", isOwner);
+    // console.log("LIVE: ", live);
+    // console.log("Is owner viewing: ", isOwner);
 
     const { token, ...streamerWithoutToken } = req.streamer;
 
@@ -124,7 +124,7 @@ export const getStreamerByUsername = async (req: Request, res: Response) => {
                     stream.name && stream.name.includes(streamerToken)
                 );
 
-                console.log("Found streams for token: ", streamerToken, streamerStreams.length);
+                // console.log("Found streams for token: ", streamerToken, streamerStreams.length);
 
                 // Dodaj urls jako właściwość obiektu stream
                 response.stream!.urls = streamerStreams.length > 0 ? streamerStreams : null;
