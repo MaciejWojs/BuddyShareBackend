@@ -91,71 +91,8 @@ const helperCombineStreams = async (streamerId: number | null = null) => {
 }
 
 export const getAllStreams = async (_req: Request, res: Response) => {
-    const endpoint = `${host}/streams`;
     try {
-        // const streams = await sql`
-        // SELECT  s.*, str.access_token, so.description as stream_description, so.*, c.name as category_name, ui.*, 
-        //        array_agg(DISTINCT t.name) FILTER (WHERE t.name IS NOT NULL) as tags
-        // FROM streams s
-        // JOIN stream_options so ON s.options_id = so.id
-        // JOIN streamers str ON s.streamer_id = str.id
-        // JOIN users_info ui ON str.user_id = ui.id
-        // LEFT JOIN streams_categories sc ON s.id = sc.stream_id
-        // LEFT JOIN categories c ON sc.category_id = c.id
-        // LEFT JOIN streams_tags stg ON s.id = stg.stream_id
-        // LEFT JOIN tags t ON stg.tag_id = t.id
-        // WHERE so."isLive" = TRUE
-        // AND so."isDeleted" = FALSE
-        // AND so."isPublic" = TRUE
-        // GROUP BY s.id, so.id, c.name, ui.id, str.access_token
-        // ORDER BY so.created_at DESC
-        // `;
-        // if (streams.length === 0) {
-        //     res.status(StatusCodes.NOT_FOUND).json({ error: 'No streams found' });
-        //     return;
-        // }
-
-        // // Pobierz dane streamów z zewnętrznego API
-        // const response = await axios.get(endpoint);
-        // const simplifiedStreams = transformStreamsData(response.data);
-
-        // // Łączenie danych z bazy danych z danymi z API
-        // const combinedStreams = streams
-        //     .map((stream: { access_token: any; }) => {
-        //         // Szukamy pasujących streamów z API po tokenie dostępu
-        //         const apiStreamData = simplifiedStreams.streams?.find(
-        //             (apiStream: { name: any; }) => apiStream.name === stream.access_token
-        //         );
-
-        //         // Jeśli nie znaleziono pasującego streamu w API lub nie zawiera właściwości qualities,
-        //         // pomijamy ten stream
-        //         if (!apiStreamData || !apiStreamData.qualities) {
-        //             return null;
-        //         }
-
-        //         // Tworzymy nowy obiekt bez tokena dostępu
-        //         const streamWithoutToken: StreamWithUrls = {
-        //             ...stream,
-        //             stream_urls: undefined
-        //         };
-
-        //         // Usuwamy token dostępu
-        //         delete streamWithoutToken.access_token;
-        //         delete streamWithoutToken.email;
-
-        //         // Dodajemy linki do streamów
-        //         streamWithoutToken.stream_urls = apiStreamData.qualities;
-
-        //         return streamWithoutToken;
-        //     })
-        //     .filter((stream: null) => stream !== null); // Filtrujemy, aby usunąć streamy bez linków
-
-        // if (combinedStreams.length === 0) {
-        //     res.status(StatusCodes.NOT_FOUND).json({ error: 'No active streams found' });
-        //     return;
-        // }
         const combinedStreams = await helperCombineStreams();
-
         res.status(StatusCodes.OK).json(combinedStreams);
     } catch (error) {
         console.error('Error fetching streams:', error);

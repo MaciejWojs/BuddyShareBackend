@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { SocketState } from '../state';
+import { sql } from 'bun';
 
 export const handleAuthEvents = (socket: Socket, io: Server) => {
   const publicNsp = io.of("/public");
@@ -24,15 +25,19 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
 
 
   // przyjmowanie i rozsyłanie wiadomości
-  socket.on("sendChatMessage", (data: { streamId: string; message: string }) => {
+  socket.on("sendChatMessage", async (data: { streamId: string; message: string }) => {
     if (!data.streamId || !data.message) {
       console.error("Invalid chat message data:", data);
       return;
     }
+
+    // Pobrane z middleware do autoryzacji socketów
+    const username = socket.data.user.userInfo?.username;
+    
     const room = `chat:${data.streamId}`;
     const chatMessage = {
       userId: socket.data.user.userId,
-      username: socket.data.user.username || socket.data.user.userId,
+      username: username || "Anonymous",
       text: data.message,
       timestamp: new Date().toISOString(),
     };
