@@ -1,9 +1,5 @@
 import { PrismaClient, Role } from '@prisma/client';
-import * as dotenv from 'dotenv';
 import { fakerPL as faker } from "@faker-js/faker";
-
-// Załaduj zmienne środowiskowe
-dotenv.config();
 
 const isDevelopment = process.env.DEVELOPMENT;
 

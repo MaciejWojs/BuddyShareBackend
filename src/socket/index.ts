@@ -124,8 +124,8 @@ export const broadcastStream = (streamData: {
   userRole: string;
   tags: any | null;
   stream_urls: {
-      name: string;
-      dash: string;
+    name: string;
+    dash: string;
   }[];
 }) => {
   if (!io) {
@@ -135,7 +135,7 @@ export const broadcastStream = (streamData: {
 
   // console.log('Broadcasting stream:', streamData.uris[0])
 
-  io.of('/public').emit('streamStarted', streamData);
+  io.of('/public').emit('patchStream', streamData);
 }
 
 
@@ -198,6 +198,40 @@ export const broadcastNewStream = async (streamData: {
     return false;
   }
 };
+
+export const notifyStreamer = (streamId: string | number, streamerUserId: string, streamerName: string, message: string = "Stream is not public click here to change that.") => {
+  if (!io) {
+    console.error('Socket.IO nie został zainicjalizowany');
+    return;
+  }
+  try {
+    const sockets = Array.from(io.of('/auth').sockets.values()).filter(
+      (s) => {
+        console.log(s.data.user?.userId, streamerUserId);
+        return s.data.user?.userId == streamerUserId
+      }
+    );
+
+    const payload = {
+      message: message,
+      userId: streamerUserId,
+      streamerName: streamerName,
+      type: 'dismissable',
+      stream_id: streamId,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    }
+
+    console.log(`valid sockets: ${sockets.length}`);
+    sockets.forEach((s) => {
+      console.log(s.id, " -> ", payload)
+      s.emit('notifyStreamer', payload)
+    });
+    console.log(`Notified streamer ${streamerUserId}[${streamerName}] with message: ${message}`);
+  } catch (error) {
+    console.error('Error notifying streamer:', error);
+  }
+}
 
 /**
  * Broadcast zakończenia transmisji - wywoływany z kontrolera HTTP

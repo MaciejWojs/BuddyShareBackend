@@ -4,7 +4,7 @@ import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import axios from 'axios';
 import { sql } from 'bun';
 import { transformStreamsData } from '../utils/streams';
-import { broadcastNewStream, broadcastStream as broadcastStream, broadcastStreamEnd } from '../socket';
+import { broadcastNewStream, broadcastStream as broadcastPatchStream, broadcastStreamEnd, notifyStreamer } from '../socket';
 import { console } from 'node:inspector';
 
 const prisma = new PrismaClient();
@@ -36,7 +36,6 @@ const helperCombineStreams = async (streamerId: number | null = null) => {
         LEFT JOIN tags t ON stg.tag_id = t.id
         WHERE so."isLive" = TRUE
         AND so."isDeleted" = FALSE
-        AND so."isPublic" = TRUE
         ${streamerId ? sql`AND str.id = ${streamerId}` : sql``}
         GROUP BY s.id, so.id, c.name, ui.id, str.access_token
         ORDER BY so.created_at DESC
@@ -81,8 +80,8 @@ const helperCombineStreams = async (streamerId: number | null = null) => {
                 return streamWithoutToken;
             })
             .filter((stream: null) => stream !== null); // Filtrujemy, aby usunąć streamy bez linków
-            console.log("Combined streams: ", combinedStreams.length);
-            return combinedStreams;
+        console.log("Combined streams: ", combinedStreams.length);
+        return combinedStreams;
     }
     catch (error) {
         console.error('Error fetching streams:', error);
@@ -105,6 +104,7 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
     console.log('notifyStreamStart endpoint hit');
 
     const streamerId = req.streamer.streamerId;
+    const streamerUserId = req.streamer.user.userId;
     const username = req.streamer.user.userInfo.username;
 
     // 1. Sprawdź, czy streamer już nadaje
@@ -191,6 +191,8 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
             },
             notifications
         );
+
+        notifyStreamer(stream.id, streamerUserId, username);
 
         console.log(`${username} started streaming ▶️`);
         return
@@ -303,7 +305,7 @@ export const patchStream = async (req: Request, res: Response) => {
 `
     const combinedStreams = await helperCombineStreams(streamerId);
 
-    broadcastStream(combinedStreams[0]);
+    broadcastPatchStream(combinedStreams[0]);
     if (stream.length === 0) {
         res.status(StatusCodes.NOT_FOUND).json({ error: 'Stream not found' });
         return;

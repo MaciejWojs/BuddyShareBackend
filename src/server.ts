@@ -1,4 +1,3 @@
-import * as dotenv from 'dotenv';
 import app from './app';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
@@ -6,7 +5,6 @@ import { setupSocketServer } from './socket';
 import { sql } from 'bun';
 import axios from 'axios';
 
-dotenv.config();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
 
 // Zastąp obecną obsługę beforeExit tymi obsługami sygnałów
