@@ -51,6 +51,9 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
     // Aktualizuj licznik widzów
     const viewerCount = SocketState.liveStreams.get(streamId) || 0;
     SocketState.liveStreams.set(streamId, viewerCount + 1);
+    
+    // Aktualizuj historię widzów
+    SocketState.updateViewerHistory(streamId, viewerCount + 1);
 
     // Powiadom wszystkich o nowym widzu
     io.of('/public').to(streamId).emit('viewerUpdate', SocketState.liveStreams.get(streamId));
@@ -63,6 +66,9 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
 
     const viewerCount = (SocketState.liveStreams.get(streamId) || 1) - 1;
     SocketState.liveStreams.set(streamId, Math.max(0, viewerCount));
+    
+    // Aktualizuj historię widzów
+    SocketState.updateViewerHistory(streamId, Math.max(0, viewerCount));
 
     io.of('/public').to(streamId).emit('viewerUpdate', viewerCount);
   });
