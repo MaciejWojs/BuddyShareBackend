@@ -278,7 +278,7 @@ export const broadcastStreamEnd = (streamData: {
 };
 
 // Interwał do wysyłania statystyk (1 sekunda)
-const STATS_INTERVAL = 1000; 
+const STATS_INTERVAL = 1000;
 
 /**
  * Rozpocznij regularną emisję statystyk dla wszystkich aktywnych streamów
@@ -290,45 +290,41 @@ export const startStatsEmission = () => {
   }
 
   setInterval(() => {
-    // 1. Dla każdego aktywnego streamu wyślij aktualne statystyki
+    // Dla każdego aktywnego streamu wyślij statystyki
     SocketState.liveStreams.forEach((viewerCount, streamId) => {
       const streamerName = SocketState.streamMetadata.get(streamId)?.streamerName;
-      
-      if (!streamerName) return;
-      
-      // Aktualizuj historię widzów
-      SocketState.updateViewerHistory(streamId, viewerCount);
-      
-      // Znajdź sockety streamera
-      const streamerSockets = Array.from(io!.of('/auth').sockets.values())
-        .filter(s => s.data?.user?.userId === streamerName);
-      
-      // Wyślij szczegółowe statystyki do streamera
-      streamerSockets.forEach(socket => {
-        socket.emit('streamStats', {
-          streamId,
-          timestamp: Date.now(),
-          currentStats: {
-            viewers: viewerCount,
-            followers: SocketState.streamFollowers.get(streamerName)?.size || 0,
-            subscribers: SocketState.streamSubscribers.get(streamerName)?.size || 0
-          },
-          // Wyślij historię dla wykresów
-          viewerHistory: SocketState.viewerHistory.get(streamId) || [],
-          followerHistory: SocketState.followerHistory.get(streamerName) || [],
-          subscriberHistory: SocketState.subscriberHistory.get(streamerName) || []
-        });
-      });
 
-      // Wyślij podstawowe statystyki do wszystkich widzów (publiczne)
-      io!.of('/public').to(streamId).emit('streamStatsBasic', {
+      if (!streamerName) return;
+
+      // Aktualizuj wszystkie historie statystyk
+      SocketState.updateViewerHistory(streamId, viewerCount);
+      SocketState.updateFollowerHistory(streamerName);
+      SocketState.updateSubscriberHistory(streamerName);
+
+      // Przygotuj kompletny pakiet statystyk
+      const statsPackage = {
         streamId,
-        viewers: viewerCount,
-        followers: SocketState.streamFollowers.get(streamerName)?.size || 0,
-        subscribers: SocketState.streamSubscribers.get(streamerName)?.size || 0
-      });
-      console.log(`Emitting stats for stream ${streamId}: ${viewerCount} viewers`);
+        timestamp: Date.now(),
+        stats: {
+          viewers: viewerCount,
+          followers: SocketState.streamFollowers.get(streamerName)?.size || 0,
+          subscribers: SocketState.streamSubscribers.get(streamerName)?.size || 0
+        },
+        // Dołącz pełną historię danych
+        history: {
+          viewers: SocketState.viewerHistory.get(streamId) || [],
+          followers: SocketState.followerHistory.get(streamerName) || [],
+          subscribers: SocketState.subscriberHistory.get(streamerName) || []
+        }
+      };
+
+      // Wyślij te same dane do wszystkich zainteresowanych stron (pokój streamu)
+      io!.of('/public').to(streamId).emit('streamStats', statsPackage);
+
+      // Zapisz w logach tylko co 10 sekund, aby nie zaśmiecać konsoli
+      if (Date.now() % 10000 < STATS_INTERVAL) {
+        console.log(`Emitting stats for stream ${streamId}: ${viewerCount} viewers`);
+      }
     });
-    
   }, STATS_INTERVAL);
 };
