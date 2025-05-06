@@ -4,6 +4,7 @@ import { SocketState } from './state';
 import { sql } from 'bun';
 import { handlePublicEvents } from './handlers/publicHandlers';
 import { handleAuthEvents } from './handlers/authHandlers';
+import { isConstructorDeclaration } from 'typescript';
 
 // Instancja Socket.IO
 let io: Server | null = null;
@@ -17,6 +18,8 @@ export const setupSocketServer = (socketIo: Server) => {
   // Inicjalizuj oba sockety
   initializePublicSocket(io);
   initializeSocket(io);
+
+  startStatsEmission();
 
   return io;
 };
@@ -124,8 +127,8 @@ export const broadcastStream = (streamData: {
   userRole: string;
   tags: any | null;
   stream_urls: {
-      name: string;
-      dash: string;
+    name: string;
+    dash: string;
   }[];
 }) => {
   if (!io) {
@@ -135,7 +138,7 @@ export const broadcastStream = (streamData: {
 
   // console.log('Broadcasting stream:', streamData.uris[0])
 
-  io.of('/public').emit('streamStarted', streamData);
+  io.of('/public').emit('patchStream', streamData);
 }
 
 
@@ -199,6 +202,40 @@ export const broadcastNewStream = async (streamData: {
   }
 };
 
+export const notifyStreamer = (streamId: string | number, streamerUserId: string, streamerName: string, message: string = "Stream is not public click here to change that.") => {
+  if (!io) {
+    console.error('Socket.IO nie został zainicjalizowany');
+    return;
+  }
+  try {
+    const sockets = Array.from(io.of('/auth').sockets.values()).filter(
+      (s) => {
+        console.log(s.data.user?.userId, streamerUserId);
+        return s.data.user?.userId == streamerUserId
+      }
+    );
+
+    const payload = {
+      message: message,
+      userId: streamerUserId,
+      streamerName: streamerName,
+      type: 'dismissable',
+      stream_id: streamId,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    }
+
+    console.log(`valid sockets: ${sockets.length}`);
+    sockets.forEach((s) => {
+      console.log(s.id, " -> ", payload)
+      s.emit('notifyStreamer', payload)
+    });
+    console.log(`Notified streamer ${streamerUserId}[${streamerName}] with message: ${message}`);
+  } catch (error) {
+    console.error('Error notifying streamer:', error);
+  }
+}
+
 /**
  * Broadcast zakończenia transmisji - wywoływany z kontrolera HTTP
  */
@@ -230,6 +267,7 @@ export const broadcastStreamEnd = (streamData: {
     // 2. Usuń informacje o streamie z pamięci
     SocketState.liveStreams.delete(socketStreamId);
     SocketState.streamMetadata.delete(socketStreamId);
+    SocketState.clearStreamHistory(socketStreamId);
 
     console.log(`Broadcasted stream end: ${socketStreamId} by ${streamData.streamerName}`);
     return true;
@@ -237,4 +275,56 @@ export const broadcastStreamEnd = (streamData: {
     console.error('Error broadcasting stream end:', error);
     return false;
   }
+};
+
+// Interwał do wysyłania statystyk (1 sekunda)
+const STATS_INTERVAL = 1000;
+
+/**
+ * Rozpocznij regularną emisję statystyk dla wszystkich aktywnych streamów
+ */
+export const startStatsEmission = () => {
+  if (!io) {
+    console.error('Socket.IO nie został zainicjalizowany');
+    return;
+  }
+
+  setInterval(() => {
+    // Dla każdego aktywnego streamu wyślij statystyki
+    SocketState.liveStreams.forEach((viewerCount, streamId) => {
+      const streamerName = SocketState.streamMetadata.get(streamId)?.streamerName;
+
+      if (!streamerName) return;
+
+      // Aktualizuj wszystkie historie statystyk
+      SocketState.updateViewerHistory(streamId, viewerCount);
+      SocketState.updateFollowerHistory(streamerName);
+      SocketState.updateSubscriberHistory(streamerName);
+
+      // Przygotuj kompletny pakiet statystyk
+      const statsPackage = {
+        streamId,
+        timestamp: Date.now(),
+        stats: {
+          viewers: viewerCount,
+          followers: SocketState.streamFollowers.get(streamerName)?.size || 0,
+          subscribers: SocketState.streamSubscribers.get(streamerName)?.size || 0
+        },
+        // Dołącz pełną historię danych
+        history: {
+          viewers: SocketState.viewerHistory.get(streamId) || [],
+          followers: SocketState.followerHistory.get(streamerName) || [],
+          subscribers: SocketState.subscriberHistory.get(streamerName) || []
+        }
+      };
+
+      // Wyślij te same dane do wszystkich zainteresowanych stron (pokój streamu)
+      io!.of('/public').to(streamId).emit('streamStats', statsPackage);
+
+      // Zapisz w logach tylko co 10 sekund, aby nie zaśmiecać konsoli
+      if (Date.now() % 10000 < STATS_INTERVAL) {
+        console.log(`Emitting stats for stream ${streamId}: ${viewerCount} viewers`);
+      }
+    });
+  }, STATS_INTERVAL);
 };
