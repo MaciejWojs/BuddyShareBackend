@@ -277,8 +277,8 @@ export const broadcastStreamEnd = (streamData: {
   }
 };
 
-// Interwał do wysyłania statystyk (1 sekunda)
-const STATS_INTERVAL = 1000;
+// Interwał do wysyłania statystyk (5 sekund)
+const STATS_INTERVAL = 5000;
 
 /**
  * Rozpocznij regularną emisję statystyk dla wszystkich aktywnych streamów
