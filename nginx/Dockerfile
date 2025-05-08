@@ -2,10 +2,7 @@
 FROM alpine:latest
 
 # Utworzenie wszystkich potrzebnych katalogów dla HLS i DASH z odpowiednimi uprawnieniami
-RUN mkdir -p /tmp/hls && \
-    # mkdir -p /tmp/hls/transcode && \
-    mkdir -p /tmp/dash && \
-    # mkdir -p /tmp/dash/transcode && \
+RUN mkdir -p /tmp/dash && \
     chmod -R 777 /tmp/hls && \
     chmod -R 777 /tmp/dash
 
@@ -76,13 +73,19 @@ RUN . /tmp/nginx_version.sh && \
 # Copy the nginx.conf with RTMP configuration
 COPY nginx.conf /etc/nginx/nginx.conf.template
 
-COPY index.html /usr/share/nginx/html/index.html 
-
-# RUN ln -sf /dev/stderr /var/log/nginx/error.log 
-# RUN ln -sf /dev/stdout /var/log/nginx/access.log
+# RUN ln -sf /dev/stderr /var/log/nginx/error.log  \
+#   && ln -sf /dev/stderr /tmp/ffmpeg_errors.log  \
+#   && ln -sf /dev/stdout /var/log/nginx/access.log \
+#   && ln -sf /dev/stdout /var/log/nginx/auth_request.log \
+#   && ln -sf /dev/stdout /var/log/nginx/dash_debug.log \
+#   && ln -sf /dev/stdout /var/log/nginx/target_path.log \
+#   && ln -sf /dev/stdout /var/log/nginx/auth_request_details.log \
+#   && ln -sf /dev/stdout /var/log/nginx/token_headers.log  \
+#   && ln -sf /dev/stdout /tmp/stream_start.log \
+#   && ln -sf /dev/stdout /tmp/stream_debug.log
 
 # Expose RTMP and HTTP ports
 EXPOSE 1935 80 8080
 
 # Start NGINX
-ENTRYPOINT ["sh", "-c", "export DOLLAR='$' && envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
+ENTRYPOINT ["sh", "-c", "export DOLLAR='$' && envsubst '$HOST $DOLLAR' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]

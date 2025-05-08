@@ -1,14 +1,9 @@
 import { Request, Response } from 'express';
-import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
-import axios from 'axios';
 import { sql } from 'bun';
-import { transformStreamsData } from '../utils/streams';
 import { broadcastNewStream, broadcastStream as broadcastPatchStream, broadcastStreamEnd, notifyStreamer } from '../socket';
 import { console } from 'node:inspector';
-
-const prisma = new PrismaClient();
-const host = process.env.STREAM_HOST || "http://nginx:8080/api";
+import { resolveStreamerTokenCache, tokenCache } from '../middleware/cache';
 
 interface StreamData {
     access_token: any;
@@ -16,12 +11,14 @@ interface StreamData {
     [key: string]: any;
 }
 
-interface StreamWithUrls extends StreamData {
-    stream_urls: any;
+interface StreamRequest extends Request {
+    streamId?: string;
+    streamer?: any;
+    userInfo?: any;
 }
 
 const helperCombineStreams = async (streamerId: number | null = null) => {
-    const endpoint = `${host}/streams`;
+    const host = process.env.STREAM_HOST_VIDEO || "http://localhost";
     try {
         const streams = await sql`
         SELECT  s.*, str.access_token, so.description as stream_description, so.*, c.name as category_name, ui.*, 
@@ -46,42 +43,40 @@ const helperCombineStreams = async (streamerId: number | null = null) => {
             return [];
         }
 
-        // Pobierz dane streamów z zewnętrznego API
-        const response = await axios.get(endpoint);
-        const simplifiedStreams = transformStreamsData(response.data);
-
-        // Łączenie danych z bazy danych z danymi z API
-        const combinedStreams = streams
-            .map((stream: { access_token: any; }) => {
-                // Szukamy pasujących streamów z API po tokenie dostępu
-                const apiStreamData = simplifiedStreams.streams?.find(
-                    (apiStream: { name: any; }) => apiStream.name === stream.access_token
-                );
-
-                // Jeśli nie znaleziono pasującego streamu w API lub nie zawiera właściwości qualities,
-                // pomijamy ten stream
-                if (!apiStreamData || !apiStreamData.qualities) {
-                    return [];
+        for (const stream of streams) {
+            stream.stream_urls = [
+                {
+                    name: "source",
+                    dash: `${host}/dash/${stream.options_id}.mpd`
+                },
+                {
+                    name: "720p",
+                    dash: `${host}/dash/test/${stream.options_id}_720p.mpd`
+                },
+                {
+                    name: "480p",
+                    dash: `${host}/dash/test/${stream.options_id}_480p.mpd`
+                },
+                {
+                    name: "360p",
+                    dash: `${host}/dash/test/${stream.options_id}_360p.mpd`
                 }
+            ];
+        }
 
+        const securedStreams = streams
+            .map((stream: { access_token: any; }) => {
                 // Tworzymy nowy obiekt bez tokena dostępu
-                const streamWithoutToken: StreamWithUrls = {
-                    ...stream,
-                    stream_urls: undefined
+                const streamWithoutToken: StreamData = {
+                    ...stream
                 };
 
-                // Usuwamy token dostępu
                 delete streamWithoutToken.access_token;
                 delete streamWithoutToken.email;
 
-                // Dodajemy linki do streamów
-                streamWithoutToken.stream_urls = apiStreamData.qualities;
-
                 return streamWithoutToken;
             })
-            .filter((stream: null) => stream !== null); // Filtrujemy, aby usunąć streamy bez linków
-        console.log("Combined streams: ", combinedStreams.length);
-        return combinedStreams;
+        return securedStreams;
     }
     catch (error) {
         console.error('Error fetching streams:', error);
@@ -236,6 +231,7 @@ export const notifyStreamEnd = async (req: Request, res: Response) => {
         },
     )
 
+    tokenCache.delete(streamOptions[0].id.toString());
 
     console.log(`${req.streamer.user.userInfo.username} finished streaming. ⏹️`);
     res.sendStatus(StatusCodes.OK);
@@ -343,3 +339,40 @@ export const softDeleteStream = async (req: Request, res: Response) => {
 
 }
 
+
+export const resolveStreamerToken = async (req: StreamRequest, res: Response) => {
+    console.log('resolveStreamerToken endpoint hit');
+
+    // Get stream_id from the request query parameters
+    const streamId = req.streamId;  
+
+    try {
+        // Fetch the token from database based on stream ID
+        const token = await sql`
+            SELECT s.access_token
+            FROM streamers s
+            JOIN streams st ON s.id = st.streamer_id
+            WHERE st.id = ${streamId}
+            LIMIT 1
+        `;
+
+        
+        if (token.length === 0) {
+            console.error('Stream not found or no token available');
+            res.sendStatus(StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        tokenCache.set(streamId!, token[0].access_token);
+
+        // Set token header and return success
+        res.setHeader('Token', token[0].access_token);
+        res.sendStatus(StatusCodes.OK);
+        console.log(`Sent OK to nginx with token: ${token[0].access_token}`);
+        return;
+    } catch (error) {
+        console.error('Error fetching streamer token:', error);
+        res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR);
+        return;
+    }
+}
