@@ -1,11 +1,6 @@
 # Start from an Alpine base image
 FROM alpine:latest
 
-# Utworzenie wszystkich potrzebnych katalogów dla HLS i DASH z odpowiednimi uprawnieniami
-RUN mkdir -p /tmp/dash && \
-    chmod -R 777 /tmp/hls && \
-    chmod -R 777 /tmp/dash
-
 # Install necessary dependencies for building NGINX with the RTMP module
 RUN apk update && \
     apk add --no-cache \
@@ -83,6 +78,9 @@ COPY nginx.conf /etc/nginx/nginx.conf.template
 #   && ln -sf /dev/stdout /var/log/nginx/token_headers.log  \
 #   && ln -sf /dev/stdout /tmp/stream_start.log \
 #   && ln -sf /dev/stdout /tmp/stream_debug.log
+
+RUN mkdir -p /tmp/dash && \
+    chmod -R 777 /tmp/dash
 
 # Expose RTMP and HTTP ports
 EXPOSE 1935 80 8080
