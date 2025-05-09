@@ -14,8 +14,11 @@ services:
       - backend
 
   app:
-    image: buddy-share-back:latest
+    # image: buddy-share-back:latest
     container_name: backend
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       - db
@@ -41,7 +44,10 @@ services:
       - backend
 
   nginx:
-    image: nginx-rtmp
+    # image: nginx-rtmp
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: nginx-rtmp
     restart: unless-stopped
     depends_on:
