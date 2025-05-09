@@ -42,5 +42,7 @@ router.get('/:username/profile', UserController.getUserProfile)
 router.use('/:username/followers', followerRoutes)
 router.use('/:username/following', followingRoutes)
 
+router.use('/:username/subscriptions', authenticate, checkUserResourceOwnership,)
+
 
 export default router;

@@ -32,24 +32,24 @@ export const userNotificationsPathsEN = {
                     },
                     message: {
                       type: 'string',
-                      description: 'Notification message'
+                      description: 'Notification content'
                     },
                     isRead: {
                       type: 'boolean',
-                      description: 'Whether the notification has been read'
+                      description: 'Whether notification was read'
                     },
                     type: {
                       type: 'string',
-                      description: 'Type of notification'
+                      description: 'Notification type'
                     },
                     createdAt: {
                       type: 'string',
                       format: 'date-time',
-                      description: 'Creation timestamp'
+                      description: 'Creation date'
                     },
                     user_id: {
                       type: 'integer',
-                      description: 'User ID whom the notification belongs to'
+                      description: 'User ID the notification belongs to'
                     }
                   }
                 }
@@ -94,7 +94,7 @@ export const userNotificationsPathsEN = {
     put: {
       tags: ['Users'],
       summary: 'Update multiple notifications',
-      description: 'Updates multiple notifications for the authenticated user in bulk',
+      description: 'Updates multiple notifications at once for the authenticated user',
       security: [{ cookieAuth: [] }],
       parameters: [
         {
@@ -124,7 +124,7 @@ export const userNotificationsPathsEN = {
                     properties: {
                       id: {
                         type: 'integer',
-                        description: 'ID of the notification to update'
+                        description: 'Notification ID to update'
                       },
                       isRead: {
                         type: 'boolean',
@@ -211,7 +211,7 @@ export const userNotificationsPathsEN = {
     delete: {
       tags: ['Users'],
       summary: 'Delete multiple notifications',
-      description: 'Deletes multiple notifications for the authenticated user in bulk',
+      description: 'Deletes multiple notifications at once for the authenticated user',
       security: [{ cookieAuth: [] }],
       parameters: [
         {
@@ -237,7 +237,7 @@ export const userNotificationsPathsEN = {
                   description: 'Array of notification IDs to delete',
                   items: {
                     type: 'integer',
-                    description: 'ID of notification to delete'
+                    description: 'Notification ID to delete'
                   },
                   example: [1, 2, 3]
                 }
@@ -260,7 +260,7 @@ export const userNotificationsPathsEN = {
                   },
                   message: {
                     type: 'string',
-                    example: 'Pomyślnie usunięto 3 powiadomień'
+                    example: 'Successfully deleted 3 notifications'
                   },
                   deletedIds: {
                     type: 'array',

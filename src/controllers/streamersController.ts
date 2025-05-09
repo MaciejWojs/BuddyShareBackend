@@ -507,3 +507,106 @@ export const updateStreamerToken = async (req: Request, res: Response) => {
     }
     return;
 }
+
+export const getStreamerSubscribers = async (req: Request, res: Response) => {
+    console.log("Getting streamer subscribers for", req.userInfo.username);
+    const streamer = req.streamer;
+
+    try {
+        const subscribers = await prisma.streamers.findMany({
+            where: {
+                streamerId: streamer.streamerId,
+            },
+            include: {
+                subscribers: {
+                    include: {
+                        user: {
+                            select: {
+                                userInfo: true,
+                            },
+                        }
+                    }
+                }
+            }
+        });
+
+        res.status(StatusCodes.OK).json(subscribers);
+    } catch (error) {
+        console.error('Error fetching subscribers:', error);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+    }
+}
+export const updateStreamerSubscription = async (req: Request, res: Response) => {
+    console.log("Updating streamer subscription for", req.userInfo.username);
+    const streamer = req.streamer;
+    const userID = req.user?.userId;
+
+    if (!userID) {
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
+    }
+    try {
+        const subscription = await prisma.streamers.update({
+            where: {
+                streamerId: streamer.streamerId,
+            },
+            data: {
+                subscribers: {
+                    create: {
+                        userId: userID
+                    }
+                }
+            },
+            include: {
+                subscribers: true
+            }
+        });
+
+        res.status(StatusCodes.OK).json(subscription);
+    }
+    catch (error) {
+        console.error('Error updating streamer subscription:', error);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+    }
+    return;
+}
+export const deleteStreamerSubscription = async (req: Request, res: Response) => {
+    console.log("Deleting streamer subscription for", req.userInfo.username);
+    const streamer = req.streamer;
+    const userID = req.user?.userId;
+
+    if (!userID) {
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return
+    }
+    try {
+        const subscription = await prisma.streamers.update({
+            where: {
+                streamerId: streamer.streamerId,
+            },
+            data: {
+                subscribers: {
+                    // Używamy deleteMany zamiast disconnect, ponieważ to działa niezależnie od nazwy klucza
+                    deleteMany: {
+                        userId: userID
+                    }
+                }
+            },
+        });
+
+        res.status(StatusCodes.OK).json(subscription);
+    }
+    catch (error) {
+        console.error('Error deleting streamer subscription:', error);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+    }
+    return;
+}
+
+
+
+
+
+
+
+

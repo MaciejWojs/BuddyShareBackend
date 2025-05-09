@@ -3,6 +3,7 @@ import { authenticate, isAdmin, checkUserResourceOwnership, optionalAuthenticate
 import { userExistsMiddleware } from '../middleware/userExist';
 import * as StreamersController from '../controllers/streamersController';
 import { isStreamer } from '../middleware/isStreamer';
+import { subscriptionRelationExists, subscriptionRelationNotExists } from '../middleware/subscriptionRelation';
 import { isStreamerModerator, isModerator } from '../middleware/isModerator';
 import moderatorRoutes from './subroutes/moderatorRoutes';
 const router = Router({ mergeParams: true }); // Dodaj mergeParams: true
@@ -27,6 +28,12 @@ router.patch('/:username/token', StreamersController.updateStreamerToken);
 
 
 router.use('/:username/moderators', authenticate, moderatorRoutes)
+
+router.get('/:username/subscribers', authenticate, checkUserResourceOwnership, StreamersController.getStreamerSubscribers);
+
+router.put('/:username/subscribers', authenticate, subscriptionRelationNotExists, StreamersController.updateStreamerSubscription);
+
+router.delete('/:username/subscribers', authenticate, subscriptionRelationExists, StreamersController.deleteStreamerSubscription);
 
 
 
