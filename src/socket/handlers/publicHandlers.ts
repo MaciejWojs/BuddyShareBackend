@@ -44,10 +44,13 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
   });
 
   // // Dołączanie do transmisji jako widz (publiczne)
-  socket.on('joinStream', async (streamId: string) => {
+  socket.on('joinStream', async (streamId: string, statsOnly = false) => {
     socket.join(streamId);
 
     console.log(`Someone joined stream ${streamId}`);
+    if (statsOnly) {
+      return;
+    }
     // Aktualizuj licznik widzów
     const viewerCount = SocketState.liveStreams.get(streamId) || 0;
     SocketState.liveStreams.set(streamId, viewerCount + 1);
