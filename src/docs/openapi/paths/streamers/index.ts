@@ -527,6 +527,220 @@ export const streamersPathsEN = {
         }
       }
     }
+  },
+  '/streamers/{username}/subscribers': {
+    get: {
+      tags: ['Streamers'],
+      summary: 'Get streamer subscribers',
+      description: 'Returns a list of users who subscribe to the specified streamer',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the streamer',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'List of subscribers',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/User' }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Bad request - missing username',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '403': {
+          description: 'Forbidden - not the resource owner',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Streamer not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    put: {
+      tags: ['Streamers'],
+      summary: 'Subscribe to a streamer',
+      description: 'Creates subscription relationship between current user and streamer',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the streamer to subscribe to',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Subscription created successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: true
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Subscription created successfully'
+                  }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Bad request - subscription already exists',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Streamer not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      tags: ['Streamers'],
+      summary: 'Unsubscribe from a streamer',
+      description: 'Removes subscription relationship between current user and streamer',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the streamer to unsubscribe from',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Subscription removed successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: true
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Subscription removed successfully'
+                  }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Bad request - subscription does not exist',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Streamer or subscription not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -1043,6 +1257,220 @@ export const streamersPathsPL = {
         },
         '404': {
           description: 'Nie znaleziono streamera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/streamers/{username}/subscribers': {
+    get: {
+      tags: ['Streamerzy'],
+      summary: 'Pobierz subskrybentów streamera',
+      description: 'Zwraca listę użytkowników, którzy subskrybują określonego streamera',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika streamera',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Lista subskrybentów',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/User' }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Nieprawidłowe żądanie - brak nazwy użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '403': {
+          description: 'Zabroniony - nie jesteś właścicielem zasobu',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono streamera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    put: {
+      tags: ['Streamerzy'],
+      summary: 'Subskrybuj streamera',
+      description: 'Tworzy relację subskrypcji między bieżącym użytkownikiem a streamerem',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika streamera do subskrybowania',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Subskrypcja utworzona pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: true
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Subskrypcja utworzona pomyślnie'
+                  }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Nieprawidłowe żądanie - subskrypcja już istnieje',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono streamera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      tags: ['Streamerzy'],
+      summary: 'Anuluj subskrypcję streamera',
+      description: 'Usuwa relację subskrypcji między bieżącym użytkownikiem a streamerem',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika streamera do anulowania subskrypcji',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Subskrypcja usunięta pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: true
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Subskrypcja usunięta pomyślnie'
+                  }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Nieprawidłowe żądanie - subskrypcja nie istnieje',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono streamera lub subskrypcji',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
