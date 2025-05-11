@@ -68,7 +68,7 @@ export const getStreamerByUsername = async (req: Request, res: Response) => {
 
     // Sprawdzamy, czy użytkownik przeglądający stronę jest tym samym streamerem
     const isOwner = req.user && req.streamer && req.user.userInfo.userInfoId === req.streamer.userId;
-    
+
     // Modyfikujemy zapytanie SQL, aby uwzględnić prywatne streamy, gdy właściciel przegląda
     const live = await sql`
                     SELECT *
@@ -513,24 +513,21 @@ export const getStreamerSubscribers = async (req: Request, res: Response) => {
     const streamer = req.streamer;
 
     try {
-        const subscribers = await prisma.streamers.findMany({
+        const subscribers = await prisma.subscribers.findMany({
             where: {
                 streamerId: streamer.streamerId,
             },
             include: {
-                subscribers: {
-                    include: {
-                        user: {
-                            select: {
-                                userInfo: true,
-                            },
-                        }
-                    }
-                }
+                user: {
+                    select: {
+                        userInfo: true,
+                    },
+                },
             }
         });
 
         res.status(StatusCodes.OK).json(subscribers);
+
     } catch (error) {
         console.error('Error fetching subscribers:', error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
@@ -546,23 +543,31 @@ export const updateStreamerSubscription = async (req: Request, res: Response) =>
         return
     }
     try {
-        const subscription = await prisma.streamers.update({
-            where: {
-                streamerId: streamer.streamerId,
-            },
+        // Tworzenie nowej subskrypcji
+        await prisma.subscribers.create({
             data: {
-                subscribers: {
-                    create: {
-                        userId: userID
-                    }
-                }
-            },
-            include: {
-                subscribers: true
+                userId: userID,
+                streamerId: streamer.streamerId
             }
         });
 
-        res.status(StatusCodes.OK).json(subscription);
+        // Pobieranie wszystkich subskrypcji dla tego streamera
+        //! FUTURE PROCEDURE
+        const subscriptions = await sql`
+            SELECT 
+                s.id AS "subscriberId", 
+                s.user_id AS "userId", 
+                s.streamer_id AS "streamerId", 
+                ui.username AS "streamerUsername", 
+                ui.profile_picture AS "profilePicture"
+            FROM subscribers s
+            JOIN streamers str ON s.streamer_id = str.id
+            JOIN users u ON str.user_id = u.id
+            JOIN users_info ui ON u.user_info_id = ui.id
+            WHERE s.user_id = ${userID}`;
+
+        console.log("SUBSCRIPTIONS: ", subscriptions);
+        res.status(StatusCodes.OK).json(subscriptions);
     }
     catch (error) {
         console.error('Error updating streamer subscription:', error);
@@ -580,21 +585,31 @@ export const deleteStreamerSubscription = async (req: Request, res: Response) =>
         return
     }
     try {
-        const subscription = await prisma.streamers.update({
+        // Usuwanie subskrypcji bezpośrednio z tabeli subscribers
+        await prisma.subscribers.deleteMany({
             where: {
-                streamerId: streamer.streamerId,
-            },
-            data: {
-                subscribers: {
-                    // Używamy deleteMany zamiast disconnect, ponieważ to działa niezależnie od nazwy klucza
-                    deleteMany: {
-                        userId: userID
-                    }
-                }
-            },
+                userId: userID,
+                streamerId: streamer.streamerId
+            }
         });
 
-        res.status(StatusCodes.OK).json(subscription);
+        // Pobieranie pozostałych subskrypcji dla tego streamera
+        const subscriptions = await sql`
+            SELECT 
+                s.id AS "subscriberId", 
+                s.user_id AS "userId", 
+                s.streamer_id AS "streamerId", 
+                ui.username AS "streamerUsername", 
+                ui.profile_picture AS "profilePicture"
+            FROM subscribers s
+            JOIN streamers str ON s.streamer_id = str.id
+            JOIN users u ON str.user_id = u.id
+            JOIN users_info ui ON u.user_info_id = ui.id
+            WHERE s.user_id = ${userID}`;
+
+        console.log("SUBSCRIPTIONS: ", subscriptions);
+        res.status(StatusCodes.OK).json(subscriptions);
+
     }
     catch (error) {
         console.error('Error deleting streamer subscription:', error);
