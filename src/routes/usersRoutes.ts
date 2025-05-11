@@ -34,6 +34,8 @@ router.use('/:username/settings', authenticate, checkUserResourceOwnership, user
 // router.patch('/:username/settings', authenticate,  UserController.updateUserSettings)
 router.get('/:username/profile', UserController.getUserProfile)
 
+router.get('/:username/subscriptions',authenticate,checkUserResourceOwnership,   UserController.getUserSubscriptions)
+
 // router.get('/:username/followers',  UserController.getUserFollowers)
 // router.get('/:username/following',  UserController.getUserFollowing)
 // router.get('/:username/followers/count',  UserController.getUserFollowersCount)
@@ -42,7 +44,6 @@ router.get('/:username/profile', UserController.getUserProfile)
 router.use('/:username/followers', followerRoutes)
 router.use('/:username/following', followingRoutes)
 
-router.use('/:username/subscriptions', authenticate, checkUserResourceOwnership,)
 
 
 export default router;

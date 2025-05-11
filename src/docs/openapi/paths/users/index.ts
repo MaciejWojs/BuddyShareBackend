@@ -1241,6 +1241,91 @@ export const usersPathsEN = {
         }
       }
     }
+  },
+  '/users/{username}/subscriptions': {
+    get: {
+      tags: ['Users'],
+      summary: 'Get user subscriptions',
+      description: 'Returns all subscriptions for the authenticated user',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the user',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'List of user subscriptions',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: {
+                      type: 'integer',
+                      description: 'Subscription ID'
+                    },
+                    user_id: {
+                      type: 'integer',
+                      description: 'User ID that owns the subscription'
+                    },
+                    streamer_id: {
+                      type: 'integer',
+                      description: 'Streamer ID being subscribed to'
+                    },
+                    createdAt: {
+                      type: 'string',
+                      format: 'date-time',
+                      description: 'When the subscription was created'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '403': {
+          description: 'Forbidden - cannot access another user\'s subscriptions',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'User not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -2193,6 +2278,361 @@ export const usersPathsPL = {
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/FollowersResponse' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/followers/count': {
+    get: {
+      tags: ['Użytkownicy'],
+      summary: 'Pobierz liczbę obserwujących użytkownika',
+      description: 'Zwraca liczbę użytkowników obserwujących określonego użytkownika',
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Liczba obserwujących',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FollowCountResponse' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/followers/follow/{targetUsername}': {
+    post: {
+      tags: ['Użytkownicy'],
+      summary: 'Obserwuj użytkownika',
+      description: 'Aktualny użytkownik zaczyna obserwować innego użytkownika',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika aktualnego użytkownika',
+          schema: {
+            type: 'string'
+          }
+        },
+        {
+          name: 'targetUsername',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika do obserwowania',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Użytkownik obserwowany pomyślnie',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FollowResponse' }
+            }
+          }
+        },
+        '400': {
+          description: 'Nieprawidłowe żądanie - już obserwujesz lub nie można obserwować samego siebie',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      tags: ['Użytkownicy'],
+      summary: 'Przestań obserwować użytkownika',
+      description: 'Aktualny użytkownik przestaje obserwować innego użytkownika',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika aktualnego użytkownika',
+          schema: {
+            type: 'string'
+          }
+        },
+        {
+          name: 'targetUsername',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika do zaprzestania obserwacji',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Użytkownik przestał być obserwowany pomyślnie',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/UnfollowResponse' }
+            }
+          }
+        },
+        '400': {
+          description: 'Nieprawidłowe żądanie - nie obserwujesz lub nie można zaprzestać obserwacji samego siebie',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/following': {
+    get: {
+      tags: ['Użytkownicy'],
+      summary: 'Pobierz użytkowników obserwowanych przez użytkownika',
+      description: 'Zwraca listę użytkowników, których obserwuje określony użytkownik',
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Lista obserwowanych użytkowników',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FollowingResponse' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/following/count': {
+    get: {
+      tags: ['Użytkownicy'],
+      summary: 'Pobierz liczbę użytkowników obserwowanych przez użytkownika',
+      description: 'Zwraca liczbę użytkowników, których obserwuje określony użytkownik',
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Liczba obserwowanych użytkowników',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/FollowCountResponse' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/subscriptions': {
+    get: {
+      tags: ['Użytkownicy'],
+      summary: 'Pobierz subskrypcje użytkownika',
+      description: 'Zwraca wszystkie subskrypcje dla uwierzytelnionego użytkownika',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Lista subskrypcji użytkownika',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: {
+                      type: 'integer',
+                      description: 'ID subskrypcji'
+                    },
+                    user_id: {
+                      type: 'integer',
+                      description: 'ID użytkownika posiadającego subskrypcję'
+                    },
+                    streamer_id: {
+                      type: 'integer',
+                      description: 'ID streamera, który jest subskrybowany'
+                    },
+                    createdAt: {
+                      type: 'string',
+                      format: 'date-time',
+                      description: 'Kiedy subskrypcja została utworzona'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '403': {
+          description: 'Zabroniony - nie można uzyskać dostępu do subskrypcji innego użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
             }
           }
         },

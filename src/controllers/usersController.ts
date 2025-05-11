@@ -904,3 +904,22 @@ export const deleteUserNotificationsInBulk = async (req: Request, res: Response)
         });
     }
 }
+
+export const getUserSubscriptions = async (req: Request, res: Response) => {
+    console.log("Getting subscriptions for user ID:", req.userInfo.user.userId);
+    try {
+        const subscriptions = await sql`
+            SELECT * FROM subscribers
+            WHERE "user_id" = ${req.userInfo.user.userId}
+        `;
+
+        res.status(StatusCodes.OK).json(subscriptions);
+    }
+    catch (error: any) {
+        console.error(`Error fetching user subscriptions: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
