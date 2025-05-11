@@ -130,16 +130,14 @@ Aby uruchomić całe środowisko za pomocą Docker Compose:
 Po uruchomieniu, usługi będą dostępne pod następującymi adresami:
 - Backend API: http://localhost:5000
 - Serwer RTMP: rtmp://localhost:1935/live
-- Streaming HLS: http://localhost:80/hls/
-- Streaming DASH: http://localhost:80/dash/
+- [PROXY] Streaming DASH: http://localhost/dash/ 
 - Panel statystyk RTMP: http://localhost:8080/api/streams
 
 ## Streaming i transkodowanie
 
-Aplikacja obsługuje streaming wideo przez RTMP z automatycznym transkodowaniem do formatów HLS i DASH. Konfiguracja Nginx RTMP zapewnia:
+Aplikacja obsługuje streaming wideo przez RTMP z automatycznym transkodowaniem do formatu DASH. Konfiguracja Nginx RTMP zapewnia:
 
 - Odbiór strumieni RTMP na porcie 1935
-- Konwersję strumieni do formatu HLS dostępnego pod `/hls/`
 - Konwersję strumieni do formatu DASH dostępnego pod `/dash/`
 - Automatyczne transkodowanie do różnych rozdzielczości (360p, 480p, 720p)
 - Powiadomienia do backendu o rozpoczęciu i zakończeniu streamingu
