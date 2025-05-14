@@ -82,31 +82,28 @@ export const initializeSocket = (io: Server) => {
  */
 const handleUserDisconnect = (socket: Socket, io: Server) => {
   // Sprawdź, czy użytkownik oglądał jakieś transmisje i zaktualizuj liczniki
-  SocketState.streamRooms.forEach((users, streamId: string) => {
-    if (users.has(socket.data.user.userId)) {
-      users.delete(socket.data.user.userId);
-      const viewerCount = (SocketState.liveStreams.get(streamId) || 1) - 1;
-      SocketState.liveStreams.set(streamId, Math.max(0, viewerCount));
+  SocketState.streams.forEach((streamInfo, streamId: string) => {
+    if (streamInfo.roomMembers.has(socket.data.user.userId)) {
+      const viewerCount = SocketState.removeViewer(streamId, socket.data.user.userId);
       io.of('/public').to(streamId).emit('viewerUpdate', viewerCount);
     }
   });
 
   // Sprawdź, czy użytkownik był streamerem i zakończ jego transmisje
-  SocketState.liveStreams.forEach((_, streamId: string) => {
-    const metadata = SocketState.streamMetadata.get(streamId);
-    if (metadata && metadata.streamerName === socket.data.user.userId) {
-      SocketState.liveStreams.delete(streamId);
-      SocketState.streamMetadata.delete(streamId);
+  SocketState.streamers.forEach((streamerInfo, streamerId: string) => {
+    if (streamerInfo.streamerName === socket.data.user.userId && streamerInfo.activeStreamId) {
+      const streamId = streamerInfo.activeStreamId;
+      SocketState.endStream(streamId);
       io.of('/public').emit('streamEnded', {
         streamId,
-        streamer: socket.data.user.userId,
+        streamer: streamerId,
         reason: 'disconnected'
       });
     }
   });
 };
 
-export const broadcastStream = (streamData: {
+export const broadcastPatchStream = (streamData: {
   streamer_id: number;
   options_id: number;
   stream_description: string;
@@ -137,6 +134,14 @@ export const broadcastStream = (streamData: {
   }
 
   // console.log('Broadcasting stream:', streamData.uris[0])
+  SocketState.patchStream(
+    streamData.options_id.toString(),
+    streamData.title,
+    streamData.stream_description,
+    streamData.category_name || 'default',
+    streamData.tags || null,
+    streamData.isPublic,
+    streamData.thumbnail ? streamData.thumbnail : null)
 
   io.of('/public').emit('patchStream', streamData);
 }
@@ -151,6 +156,7 @@ export const broadcastNewStream = async (streamData: {
   streamerName: string;
   title: string;
   description: string;
+  isPublic: boolean;
   category?: string;
 }, notifications: Array<{
   id: number;
@@ -165,22 +171,25 @@ export const broadcastNewStream = async (streamData: {
     return false;
   }
 
-  console.log('Broadcasting new stream: ', 'ID: ',streamData.streamId, streamData.streamerId, streamData.title, streamData.description);
+  console.log('Broadcasting new stream: ', 'ID: ', streamData.streamId, streamData.streamerId, streamData.title, streamData.description);
 
   try {
     const socketStreamId = streamData.streamId.toString();
     const socketStreamerId = streamData.streamerId.toString();
 
-    // 1. Dodaj stream do pamięci
-    SocketState.liveStreams.set(socketStreamId, 0);
+    console.log('streamerId', socketStreamerId);
+    console.log('streamId', socketStreamId);
 
-    // 2. Zapisz metadane transmisji
-    SocketState.streamMetadata.set(socketStreamId, {
-      title: streamData.title,
-      description: streamData.description,
-      streamerName: streamData.streamerName,
-      category: streamData.category || 'default'
-    });
+    // 1. Dodaj stream do pamięci
+    SocketState.createStream(
+      socketStreamId,
+      socketStreamerId,
+      streamData.title,
+      streamData.description,
+      streamData.category || 'default',
+      streamData.streamerName,
+      streamData.isPublic
+    );
 
     // 3. Powiadom wszystkich o nowej transmisji
 
@@ -254,8 +263,9 @@ export const broadcastStreamEnd = (streamData: {
   try {
     const socketStreamId = streamData.streamId.toString();
 
-    // Pobierz statystyki przed usunięciem
-    const viewerCount = SocketState.liveStreams.get(socketStreamId) || 0;
+    // Pobierz informacje o streamie przed usunięciem
+    const streamInfo = SocketState.getStreamInfo(socketStreamId);
+    const viewerCount = streamInfo?.viewers || 0;
 
     // 1. Powiadom wszystkich o zakończeniu transmisji
     io.of('/public').emit('streamEnded', {
@@ -267,8 +277,7 @@ export const broadcastStreamEnd = (streamData: {
     });
 
     // 2. Usuń informacje o streamie z pamięci
-    SocketState.liveStreams.delete(socketStreamId);
-    SocketState.streamMetadata.delete(socketStreamId);
+    SocketState.endStream(socketStreamId);
     SocketState.clearStreamHistory(socketStreamId);
 
     console.log(`Broadcasted stream end: ${socketStreamId} by ${streamData.streamerName}`);
@@ -293,15 +302,19 @@ export const startStatsEmission = () => {
 
   setInterval(() => {
     // Dla każdego aktywnego streamu wyślij statystyki
-    SocketState.liveStreams.forEach((viewerCount, streamId) => {
-      const streamerName = SocketState.streamMetadata.get(streamId)?.streamerName;
+    SocketState.streams.forEach((streamInfo, streamId) => {
+
+      if (!streamInfo.metadata.isLive) return;
+
+      const streamerName = streamInfo.metadata.streamerName;
 
       if (!streamerName) return;
 
-      // Aktualizuj wszystkie historie statystyk
-      SocketState.updateViewerHistory(streamId, viewerCount);
-      SocketState.updateFollowerHistory(streamerName);
-      SocketState.updateSubscriberHistory(streamerName);
+      const viewerCount = streamInfo.viewers;
+      const subscribersCount = streamInfo.subscribers;
+      const followersCount = streamInfo.followers;
+
+      SocketState.updateHistory(streamId);
 
       // Przygotuj kompletny pakiet statystyk
       const statsPackage = {
@@ -309,23 +322,23 @@ export const startStatsEmission = () => {
         timestamp: Date.now(),
         stats: {
           viewers: viewerCount,
-          followers: SocketState.streamFollowers.get(streamerName)?.size || 0,
-          subscribers: SocketState.streamSubscribers.get(streamerName)?.size || 0
+          followers: followersCount,
+          subscribers: subscribersCount
         },
         // Dołącz pełną historię danych
-        history: {
-          viewers: SocketState.viewerHistory.get(streamId) || [],
-          followers: SocketState.followerHistory.get(streamerName) || [],
-          subscribers: SocketState.subscriberHistory.get(streamerName) || []
-        }
+        history: streamInfo.history
       };
+
+      // console.log('subscribers')
 
       // Wyślij te same dane do wszystkich zainteresowanych stron (pokój streamu)
       io!.of('/public').to(streamId).emit('streamStats', statsPackage);
 
+      // console.log(`Emitting stats for stream ${streamId}: `, statsPackage);
+
       // Zapisz w logach tylko co 10 sekund, aby nie zaśmiecać konsoli
       if (Date.now() % 10000 < STATS_INTERVAL) {
-        console.log(`Emitting stats for stream ${streamId}: ${viewerCount} viewers`);
+        console.log(`Emitting stats for stream ${streamId}: ${viewerCount} viewers | ${subscribersCount} subscribers | ${followersCount} followers`);
       }
     });
   }, STATS_INTERVAL);

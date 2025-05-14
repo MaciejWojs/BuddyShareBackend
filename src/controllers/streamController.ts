@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { sql } from 'bun';
-import { broadcastNewStream, broadcastStream as broadcastPatchStream, broadcastStreamEnd, notifyStreamer } from '../socket';
+import { broadcastNewStream, broadcastPatchStream, broadcastStreamEnd, notifyStreamer } from '../socket';
 import { console } from 'node:inspector';
 import { resolveStreamerTokenCache, tokenCache } from '../middleware/cache';
 import { getStreamerByUsername } from './streamersController';
@@ -365,6 +365,7 @@ export const patchStream = async (req: Request, res: Response) => {
                     title: streamTitle,
                     description: streamDescription,
                     category: 'default',
+                    isPublic: streamIsPublic,
                 },
                 notifications
             );

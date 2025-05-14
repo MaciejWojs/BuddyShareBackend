@@ -4,6 +4,7 @@ import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { sql } from 'bun';
 import axios from 'axios';
 import { transformStreamsData } from '../utils/streams';
+import { SocketState } from '../socket/state';
 
 const prisma = new PrismaClient();
 
@@ -551,6 +552,9 @@ export const updateStreamerSubscription = async (req: Request, res: Response) =>
             }
         });
 
+        //TODO jezeli jest live to dodaj do socketState
+        SocketState.addSubscriber(streamer.streamerId, userID.toString());
+
         // Pobieranie wszystkich subskrypcji dla tego streamera
         //! FUTURE PROCEDURE
         const subscriptions = await sql`
@@ -592,6 +596,9 @@ export const deleteStreamerSubscription = async (req: Request, res: Response) =>
                 streamerId: streamer.streamerId
             }
         });
+
+        //TODO jezeli jest live to usun z socketStat
+        SocketState.removeSubscriber(streamer.streamerId, userID.toString());
 
         // Pobieranie pozostałych subskrypcji dla tego streamera
         const subscriptions = await sql`
