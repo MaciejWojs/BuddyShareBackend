@@ -4,6 +4,7 @@ import { sql } from 'bun';
 import { broadcastNewStream, broadcastStream as broadcastPatchStream, broadcastStreamEnd, notifyStreamer } from '../socket';
 import { console } from 'node:inspector';
 import { resolveStreamerTokenCache, tokenCache } from '../middleware/cache';
+import { getStreamerByUsername } from './streamersController';
 
 interface StreamData {
     access_token: any;
@@ -94,7 +95,7 @@ export const getAllStreams = async (_req: Request, res: Response) => {
     }
 };
 
-
+// * Verifies streamer token in OBS
 export const notifyStreamStart = async (req: Request, res: Response) => {
     console.log('notifyStreamStart endpoint hit');
 
@@ -118,7 +119,7 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
     }
 
     try {
-        const [opts, stream, notifications] = await sql.begin(async (sql) => {
+        const [stream] = await sql.begin(async (sql) => {
             // 2.1. INSERT do stream_options (uproszczony)
             const [opts] = await sql`
               INSERT INTO stream_options (
@@ -142,50 +143,54 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
 
 
             // 2.3. Naprawiony INSERT do notifications
-            const subscribers = await sql`
-            SELECT s.user_id
-            FROM subscribers s
-            JOIN users_info ui ON ui.id = s.user_id
-            WHERE s.streamer_id = ${streamerId}
-              AND ui."isBanned" = FALSE
-          `;
+            //     const subscribers = await sql`
+            //     SELECT s.user_id
+            //     FROM subscribers s
+            //     JOIN users_info ui ON ui.id = s.user_id
+            //     WHERE s.streamer_id = ${streamerId}
+            //       AND ui."isBanned" = FALSE
+            //   `;
 
-            if (subscribers.length === 0) {
-                console.log('No subscribers found for this streamer');
-                return [opts, stream, []]; // Zwróć pustą tablicę powiadomień
-            }
+            // if (subscribers.length === 0) {
+            //     console.log('No subscribers found for this streamer');
+            //     return [opts, stream, []]; // Zwróć pustą tablicę powiadomień
+            // }
 
-            // 2. Przygotuj dane do hurtowego INSERT-a
-            const notificationsData = subscribers.map((sub: { user_id: any; }) => ({
-                user_id: sub.user_id,
-                stream_id: stream.id,
-                message: `${username || 'Streamer'} started streaming!`,
-            }));
+            // // 2. Przygotuj dane do hurtowego INSERT-a
+            // const notificationsData = subscribers.map((sub: { user_id: any; }) => ({
+            //     user_id: sub.user_id,
+            //     stream_id: stream.id,
+            //     message: `${username || 'Streamer'} started streaming!`,
+            // }));
 
             // 3. Hurtowy insert używając sql([...])
-            const notifications = await sql`
-            INSERT INTO notifications ${sql(notificationsData)}
-            RETURNING *
-          `;
+            //     const notifications = await sql`
+            //     INSERT INTO notifications ${sql(notificationsData)}
+            //     RETURNING *
+            //   `;
 
-            return [opts, stream, notifications];
+            return [
+                // opts,
+                stream
+                // notifications
+            ];
         });
         // console.log('Inserted stream_options:', opts);
         // console.log('Inserted stream:', stream);
         // console.log(`Created ${notifications.length} notifications`);
 
         // 3. Wyślij powiadomienia przez Socket.IO
-        await broadcastNewStream(
-            {
-                streamId: stream.id,
-                streamerId,
-                streamerName: username,
-                title: opts.title,
-                description: opts.description,
-                category: 'default',
-            },
-            notifications
-        );
+        // await broadcastNewStream(
+        //     {
+        //         streamId: stream.id,
+        //         streamerId,
+        //         streamerName: username,
+        //         title: opts.title,
+        //         description: opts.description,
+        //         category: 'default',
+        //     },
+        //     notifications
+        // );
 
         notifyStreamer(stream.id, streamerUserId, username);
 
@@ -276,7 +281,8 @@ export const getStream = async (req: Request, res: Response) => {
 }
 
 export const patchStream = async (req: Request, res: Response) => {
-    console.log('patchStream endpoint hit for user:', req.userInfo.username);
+    const streamerUsername = req.userInfo.username;
+    console.log('patchStream endpoint hit for user:', streamerUsername);
     const streamerId = req.streamer.streamerId;
     console.log(`Streamer ID: ${streamerId}`);
 
@@ -288,12 +294,16 @@ export const patchStream = async (req: Request, res: Response) => {
         return;
     }
 
+    const streamTitle = req.body.title;
+    const streamDescription = req.body.description;
+    const streamIsPublic = req.body.isPublic;
+
 
     const stream = await sql`
     UPDATE stream_options
-    SET title = ${req.body.title},
-        description = ${req.body.description},
-        "isPublic" = ${req.body.isPublic},
+    SET title = ${streamTitle},
+        description = ${streamDescription},
+        "isPublic" = ${streamIsPublic},
         updated_at = DEFAULT,
         thumbnail = ${req.body.thumbnail || null} 
     WHERE id = ${streamOptionId}
@@ -306,6 +316,70 @@ export const patchStream = async (req: Request, res: Response) => {
         res.status(StatusCodes.NOT_FOUND).json({ error: 'Stream not found' });
         return;
     }
+
+    if (streamIsPublic) {
+
+        try {
+            const [notifications] = await sql.begin(async (sql) => {
+
+                // 2.3. Naprawiony INSERT do notifications
+                const subscribers = await sql`
+            SELECT s.user_id
+            FROM subscribers s
+            JOIN users_info ui ON ui.id = s.user_id
+            WHERE s.streamer_id = ${streamerId}
+              AND ui."isBanned" = FALSE
+          `;
+
+                if (subscribers.length === 0) {
+                    console.log('No subscribers found for this streamer');
+                    return [[]]; // Zwróć pustą tablicę powiadomień
+                }
+
+                // 2. Przygotuj dane do hurtowego INSERT-a
+                const notificationsData = subscribers.map((sub: { user_id: any; }) => ({
+                    user_id: sub.user_id,
+                    stream_id: streamOptionId,
+                    // stream_id: stream.id,
+                    message: `${streamerUsername || 'Streamer'} started streaming!`,
+                }));
+
+                // 3. Hurtowy insert używając sql([...])
+                const notifications = await sql`
+            INSERT INTO notifications ${sql(notificationsData)}
+            RETURNING *
+          `;
+
+                return [notifications];
+            });
+            // console.log('Inserted stream_options:', opts);
+            // console.log('Inserted stream:', stream);
+            // console.log(`Created ${notifications.length} notifications`);
+
+            // 3. Wyślij powiadomienia przez Socket.IO
+            await broadcastNewStream(
+                {
+                    streamId: streamOptionId,
+                    streamerId,
+                    streamerName: streamerUsername,
+                    title: streamTitle,
+                    description: streamDescription,
+                    category: 'default',
+                },
+                notifications
+            );
+
+
+        } catch (error) {
+            console.error('Transaction error:', error);
+            res
+                .status(StatusCodes.INTERNAL_SERVER_ERROR)
+                .json({ error: 'Internal server error' });
+            return
+        }
+
+    }
+
     res.status(StatusCodes.OK).json(stream[0]);
     return;
 
@@ -344,7 +418,7 @@ export const resolveStreamerToken = async (req: StreamRequest, res: Response) =>
     console.log('resolveStreamerToken endpoint hit');
 
     // Get stream_id from the request query parameters
-    const streamId = req.streamId;  
+    const streamId = req.streamId;
 
     try {
         // Fetch the token from database based on stream ID
@@ -356,7 +430,7 @@ export const resolveStreamerToken = async (req: StreamRequest, res: Response) =>
             LIMIT 1
         `;
 
-        
+
         if (token.length === 0) {
             console.error('Stream not found or no token available');
             res.sendStatus(StatusCodes.NOT_FOUND);

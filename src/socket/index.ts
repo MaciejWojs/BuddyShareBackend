@@ -165,6 +165,8 @@ export const broadcastNewStream = async (streamData: {
     return false;
   }
 
+  console.log('Broadcasting new stream: ', 'ID: ',streamData.streamId, streamData.streamerId, streamData.title, streamData.description);
+
   try {
     const socketStreamId = streamData.streamId.toString();
     const socketStreamerId = streamData.streamerId.toString();
