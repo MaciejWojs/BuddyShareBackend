@@ -1016,7 +1016,7 @@ export const usersPathsEN = {
       }
     }
   },
-  '/users/{username}/followers/follow/{targetUsername}': {
+  '/users/{username}/followers/follow/{username}': {
     post: {
       tags: ['Users'],
       summary: 'Follow a user',
@@ -1033,7 +1033,7 @@ export const usersPathsEN = {
           }
         },
         {
-          name: 'targetUsername',
+          name: 'username',
           in: 'path',
           required: true,
           description: 'Username of user to follow',
@@ -1101,7 +1101,7 @@ export const usersPathsEN = {
           }
         },
         {
-          name: 'targetUsername',
+          name: 'username',
           in: 'path',
           required: true,
           description: 'Username of user to unfollow',
@@ -2344,7 +2344,7 @@ export const usersPathsPL = {
       }
     }
   },
-  '/users/{username}/followers/follow/{targetUsername}': {
+  '/users/{username}/followers/follow/{username}': {
     post: {
       tags: ['Użytkownicy'],
       summary: 'Obserwuj użytkownika',
@@ -2361,7 +2361,7 @@ export const usersPathsPL = {
           }
         },
         {
-          name: 'targetUsername',
+          name: 'username',
           in: 'path',
           required: true,
           description: 'Nazwa użytkownika do obserwowania',
@@ -2429,7 +2429,7 @@ export const usersPathsPL = {
           }
         },
         {
-          name: 'targetUsername',
+          name: 'username',
           in: 'path',
           required: true,
           description: 'Nazwa użytkownika do zaprzestania obserwacji',

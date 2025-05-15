@@ -1,4 +1,5 @@
 import { Socket } from 'socket.io';
+import { sql } from 'bun';
 
 // Interfejs dla scentralizowanych informacji o streamie
 interface StreamInfo {
@@ -41,7 +42,7 @@ export class SocketState {
   static readonly MAX_HISTORY_POINTS = 1800;
 
   // ---- Stream lifecycle ----
-  static createStream(
+  static async createStream(
     streamId: string,
     streamerId: string,
     title: string,
@@ -50,15 +51,50 @@ export class SocketState {
     streamerName: string,
     isPublic: boolean,
     tags: string[] = [],
-  ): void {
+  ) {
     console.log('[createStream]', { streamId, streamerId, title, description, category, streamerName, tags, isPublic });
     console.log(`createStream called with streamId: ${streamId}, streamerId: ${streamerId}, title: ${title}`);
+
+    const [subscribers] = await sql`
+      SELECT user_id
+      FROM subscribers
+      WHERE streamer_id = ${streamerId}
+    `;
+
+    console.log('[createStream] subscribers ', subscribers);
+
+    let subscribersArr: { user_id: string }[] = [];
+    if (Array.isArray(subscribers)) {
+      subscribersArr = subscribers;
+    } else if (subscribers && typeof subscribers === 'object' && 'user_id' in subscribers) {
+      subscribersArr = [subscribers];
+    }
+
+    const subscribersMap = subscribersArr.reduce((acc: Set<string>, subscriber: { user_id: string }) => {
+      acc.add(subscriber.user_id);
+      return acc;
+    }, new Set<string>());
+
+
+    const followers = await sql`
+      SELECT f.follower_user_id, us.username
+      FROM followers AS f
+      join users u on u.id = f.followed_user_id
+      join users_info us on us.id = f.follower_user_id
+      where u.id = (select user_id from streamers where id = ${streamerId})
+    `;
+
+    const followersMap = followers.reduce((acc: Set<string>, follower: { follower_user_id: string }) => {
+      acc.add(follower.follower_user_id);
+      return acc;
+    }, new Set<string>());
+
     if (!this.streamers.has(streamerId)) {
       this.streamers.set(streamerId, {
         streamerId,
         streamerName,
-        followers: new Set(),
-        subscribers: new Set(),
+        followers: followersMap,
+        subscribers: subscribersMap,
         activeStreamId: null
       });
     } else {
@@ -125,7 +161,7 @@ export class SocketState {
     stream.metadata.title = title;
     stream.metadata.description = description;
     stream.metadata.category = category;
-    stream.metadata.tags = tags? tags : null;
+    stream.metadata.tags = tags ? tags : null;
     stream.metadata.thumbnail = thumbnail || null;
     stream.metadata.isPublic = isPublic;
 

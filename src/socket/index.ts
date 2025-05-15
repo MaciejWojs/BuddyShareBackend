@@ -181,7 +181,7 @@ export const broadcastNewStream = async (streamData: {
     console.log('streamId', socketStreamId);
 
     // 1. Dodaj stream do pamięci
-    SocketState.createStream(
+    await SocketState.createStream(
       socketStreamId,
       socketStreamerId,
       streamData.title,
