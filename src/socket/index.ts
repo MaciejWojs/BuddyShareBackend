@@ -48,6 +48,9 @@ export const initializePublicSocket = (io: Server) => {
 
     socket.on('disconnect', () => {
       console.log(`Public user disconnected: ${socket.id}`);
+      if (socket.data.streamId) {
+        SocketState.removeViewer(socket.data.streamId, socket.id);
+      }
     });
   });
 };

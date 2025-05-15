@@ -34,7 +34,7 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
 
   // // Dołączanie do transmisji jako widz (publiczne)
   socket.on('joinStream', async (streamId: string, statsOnly = false) => {
-      if (!streamId) {
+    if (!streamId) {
       console.error("Invalid streamId:", streamId);
       return;
     }
@@ -49,12 +49,14 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
       return;
     }
     socket.join(streamId);
-
+    
+    
     console.log(`Someone joined stream ${streamId}`);
     if (statsOnly) {
       return;
     }
-
+    socket.data.streamId = streamId;
+    
     // Używamy id gniazda jako id użytkownika dla niezalogowanych użytkowników
     const userId = socket.id;
 
@@ -73,6 +75,7 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
     // Użyj id gniazda jako id użytkownika i zaktualizuj licznik widzów
     const userId = socket.id;
     const viewerCount = SocketState.removeViewer(streamId, userId);
+    socket.data.streamId = null;
 
     io.of('/public').to(streamId).emit('viewerUpdate', viewerCount);
   });
