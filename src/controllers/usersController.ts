@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { sql } from 'bun';
+import Stream from 'stream';
+import { SocketState } from '../socket/state';
 
 // Rozszerzenie interfejsu Request o pole userInfo
 declare global {
@@ -587,6 +589,22 @@ export const followUser = async (req: Request, res: Response) => {
             message: `User with id: ${followerUserId} followed user with id: ${followedUserId} successfully`
         });
         console.log(`User with id: ${followerUserId} followed user with id: ${followedUserId} successfully`)
+
+
+        if (!req.streamer) return;
+
+        if (!(req.streamer.userId === followedUserId)) {
+            console.log("User is not a streamer, skipping SocketState update");
+            return;
+        }
+
+        console.log("User is a streamer, updating SocketState", req.streamer);
+
+        const streamerId = req.streamer.streamerId.toString();
+        if (SocketState.streamers.has(streamerId)) {
+            console.log("Adding follower to SocketState");
+            SocketState.addFollower(streamerId, followerUserId.toString());
+        }
     }
     catch (error: any) {
         console.error(`Error following user: ${error}`);
@@ -654,6 +672,19 @@ export const unfollowUser = async (req: Request, res: Response) => {
             message: `User with id: ${followerUserId} unfollowed user with id: ${followedUserId} successfully`
         });
         console.log(`User with id: ${followerUserId} unfollowed user with id: ${followedUserId} successfully`);
+
+        
+        if (!req.streamer) return;
+
+        if (!(req.streamer.userId === followedUserId)) {
+            console.log("User is not a streamer, skipping SocketState update");
+            return;
+        }
+        const streamerId = req.streamer.streamerId.toString();
+        if (req.streamer && SocketState.streamers.has(streamerId)) {
+            console.log("Removing follower from SocketState");
+            SocketState.removeFollower(streamerId, followerUserId.toString());
+        }
     }
     catch (error: any) {
         console.error(`Error unfollowing user: ${error}`);

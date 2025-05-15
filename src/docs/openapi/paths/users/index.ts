@@ -782,152 +782,6 @@ export const usersPathsEN = {
       }
     }
   },
-  '/users/{username}/follow': {
-    post: {
-      tags: ['Users'],
-      summary: 'Follow a user',
-      description: 'Follows another user',
-      security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: 'username',
-          in: 'path',
-          required: true,
-          description: 'Username of user to follow',
-          schema: {
-            type: 'string'
-          }
-        }
-      ],
-      responses: {
-        '200': {
-          description: 'User followed successfully',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  success: {
-                    type: 'boolean',
-                    example: true
-                  },
-                  message: {
-                    type: 'string',
-                    example: 'User followed successfully'
-                  }
-                }
-              }
-            }
-          }
-        },
-        '400': {
-          description: 'Bad request - already following or cannot follow yourself',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '401': {
-          description: 'Unauthorized - not authenticated',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '404': {
-          description: 'User not found',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '500': {
-          description: 'Internal server error',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        }
-      }
-    }
-  },
-  '/users/{username}/unfollow': {
-    post: {
-      tags: ['Users'],
-      summary: 'Unfollow a user',
-      description: 'Unfollows a previously followed user',
-      security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: 'username',
-          in: 'path',
-          required: true,
-          description: 'Username of user to unfollow',
-          schema: {
-            type: 'string'
-          }
-        }
-      ],
-      responses: {
-        '200': {
-          description: 'User unfollowed successfully',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  success: {
-                    type: 'boolean',
-                    example: true
-                  },
-                  message: {
-                    type: 'string',
-                    example: 'User unfollowed successfully'
-                  }
-                }
-              }
-            }
-          }
-        },
-        '400': {
-          description: 'Bad request - not following or cannot unfollow yourself',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '401': {
-          description: 'Unauthorized - not authenticated',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '404': {
-          description: 'User not found',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '500': {
-          description: 'Internal server error',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        }
-      }
-    }
-  },
   '/users/{username}/followers': {
     get: {
       tags: ['Users'],
@@ -1016,7 +870,7 @@ export const usersPathsEN = {
       }
     }
   },
-  '/users/{username}/followers/follow/{username}': {
+  '/users/{username}/followers/follow/{targetUsername}': {
     post: {
       tags: ['Users'],
       summary: 'Follow a user',
@@ -1033,7 +887,7 @@ export const usersPathsEN = {
           }
         },
         {
-          name: 'username',
+          name: 'targetUsername',
           in: 'path',
           required: true,
           description: 'Username of user to follow',
@@ -1101,7 +955,7 @@ export const usersPathsEN = {
           }
         },
         {
-          name: 'username',
+          name: 'targetUsername',
           in: 'path',
           required: true,
           description: 'Username of user to unfollow',
@@ -2344,7 +2198,7 @@ export const usersPathsPL = {
       }
     }
   },
-  '/users/{username}/followers/follow/{username}': {
+  '/users/{username}/followers/follow/{targetUsername}': {
     post: {
       tags: ['Użytkownicy'],
       summary: 'Obserwuj użytkownika',
@@ -2361,7 +2215,7 @@ export const usersPathsPL = {
           }
         },
         {
-          name: 'username',
+          name: 'targetUsername',
           in: 'path',
           required: true,
           description: 'Nazwa użytkownika do obserwowania',
@@ -2429,7 +2283,7 @@ export const usersPathsPL = {
           }
         },
         {
-          name: 'username',
+          name: 'targetUsername',
           in: 'path',
           required: true,
           description: 'Nazwa użytkownika do zaprzestania obserwacji',

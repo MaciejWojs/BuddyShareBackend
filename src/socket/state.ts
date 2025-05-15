@@ -55,6 +55,15 @@ export class SocketState {
     console.log('[createStream]', { streamId, streamerId, title, description, category, streamerName, tags, isPublic });
     console.log(`createStream called with streamId: ${streamId}, streamerId: ${streamerId}, title: ${title}`);
 
+    // Zakończ poprzedni aktywny stream tego streamera (jeśli istnieje)
+    const prevActiveStreamId = this.streamers.get(streamerId)?.activeStreamId;
+    if (prevActiveStreamId && prevActiveStreamId !== streamId) {
+      this.endStream(prevActiveStreamId);
+      this.clearStreamHistory(prevActiveStreamId);
+      this.streams.delete(prevActiveStreamId);
+      console.log(`[createStream] Ended previous active stream: ${prevActiveStreamId} for streamer: ${streamerId}`);
+    }
+
     const [subscribers] = await sql`
       SELECT user_id
       FROM subscribers
@@ -182,8 +191,8 @@ export class SocketState {
   }
 
   static removeViewer(streamId: string, userId: string): number {
-    console.log('[removeViewer]', { streamId, userId });
-    console.log(`removeViewer called with streamId: ${streamId}, userId: ${userId}`);
+    // console.log('[removeViewer]', { streamId, userId });
+    // console.log(`removeViewer called with streamId: ${streamId}, userId: ${userId}`);
     const stream = this.streams.get(streamId);
     if (!stream) return 0;
     stream.roomMembers.delete(userId);
@@ -195,25 +204,18 @@ export class SocketState {
   // ---- Follower operations ----
   static addFollower(streamerId: string, userId: string): number {
     console.log('[addFollower]', { streamerId, userId });
-    console.log(`addFollower called with streamerId: ${streamerId}, userId: ${userId}`);
     if (!this.streamers.has(streamerId)) {
       this.streamers.set(streamerId, { streamerId, streamerName: '', followers: new Set(), subscribers: new Set(), activeStreamId: null });
     }
     const st = this.streamers.get(streamerId)!;
     st.followers.add(userId);
     const count = st.followers.size;
-    const sid = st.activeStreamId;
-    if (sid) {
-      const stream = this.streams.get(sid);
-      if (stream) {
-        stream.followers = count;
-        this.addHistoryPoint(sid, 'followers', count);
-      }
-    }
-    // Synchronizacja liczby obserwujących w streamie (jeśli istnieje)
+
+    // Synchronizuj followers i historię we wszystkich streamach tego streamera
     for (const [streamId, stream] of this.streams.entries()) {
       if (stream.metadata.streamerId === streamerId) {
         stream.followers = count;
+        this.addHistoryPoint(streamId, 'followers', count);
       }
     }
     console.log(`addFollower: ${streamerId} now has ${count} followers`);
@@ -222,25 +224,19 @@ export class SocketState {
 
   static removeFollower(streamerId: string, userId: string): number {
     console.log('[removeFollower]', { streamerId, userId });
-    console.log(`removeFollower called with streamerId: ${streamerId}, userId: ${userId}`);
     const st = this.streamers.get(streamerId);
     if (!st) return 0;
     st.followers.delete(userId);
     const count = st.followers.size;
-    const sid = st.activeStreamId;
-    if (sid) {
-      const stream = this.streams.get(sid);
-      if (stream) {
-        stream.followers = count;
-        this.addHistoryPoint(sid, 'followers', count);
-      }
-    }
-    // Synchronizacja liczby obserwujących w streamie (jeśli istnieje)
+
+    // Synchronizuj followers i historię we wszystkich streamach tego streamera
     for (const [streamId, stream] of this.streams.entries()) {
       if (stream.metadata.streamerId === streamerId) {
         stream.followers = count;
+        this.addHistoryPoint(streamId, 'followers', count);
       }
     }
+    console.log(`removeFollower: ${streamerId} now has ${count} followers`);
     return count;
   }
 
@@ -309,7 +305,7 @@ export class SocketState {
   }
 
   static updateHistory(streamId: string) {
-    console.log('[updateHistory]', { streamId });
+    // console.log('[updateHistory]', { streamId });
     const stream = this.streams.get(streamId);
     if (!stream) return;
     const viewers = stream.viewers;

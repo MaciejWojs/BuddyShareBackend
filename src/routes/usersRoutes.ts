@@ -6,6 +6,7 @@ import followingRoutes from './subroutes/followingRoutes';
 import followerRoutes from './subroutes/followerRoutes';
 import userSettingsRoutes from './subroutes/userSettingsRoutes';
 import { notifactionExist } from '../middleware/notifactionExist';
+import { attachStreamerIfExists } from '../middleware/isStreamer';
 
 const router = Router();
 
