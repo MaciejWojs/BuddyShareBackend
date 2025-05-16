@@ -148,52 +148,70 @@ export const broadcastPatchStream = (streamData: {
 }
 
 
-/**
- * Broadcast nowej transmisji - wywoływany z kontrolera HTTP
- */
-export const broadcastNewStream = async (streamData: {
-  streamId: string | number;
-  streamerId: string | number;
-  streamerName: string;
+export const broadcastStream = async (streamData: {
+  streamer_id: number;
+  options_id: number;
+  stream_description: string;
   title: string;
-  description: string;
+  thumbnail: string | null;
+  isDeleted: boolean;
+  isLive: boolean;
+  path: string | null;
   isPublic: boolean;
-  category?: string;
-}, notifications: Array<{
+  category_name: string | null;
   id: number;
-  user_id: number;
-  stream_id: number;
-  message: string;
+  username: string;
+  profile_picture: string;
+  description: string;
+  isBanned: boolean;
   created_at: string;
-  isRead: boolean;
-}>) => {
+  updated_at: string;
+  userRole: string;
+  tags: any | null;
+  stream_urls: {
+    name: string;
+    dash: string;
+  }[];
+}) => {
   if (!io) {
     console.error('Socket.IO nie został zainicjalizowany');
     return false;
   }
 
-  console.log('Broadcasting new stream: ', 'ID: ', streamData.streamId, streamData.streamerId, streamData.title, streamData.description);
+  const streamId = streamData.options_id.toString();
+  const streamerId = streamData.streamer_id.toString();
+
+  await SocketState.createStream(
+    streamId,
+    streamerId,
+    streamData.title,
+    streamData.description,
+    streamData.category_name || 'default',
+    streamData.username,
+    streamData.isPublic
+  );
+
+  io.of('/public').emit('streamStarted', streamData);
+}
+
+/**
+ * Broadcast nowej transmisji - wywoływany z kontrolera HTTP
+ */
+export const notifyStreamerSubscribers = async (
+  notifications: Array<{
+    id: number;
+    user_id: number;
+    stream_id: number;
+    message: string;
+    created_at: string;
+    isRead: boolean;
+  }>) => {
+  if (!io) {
+    console.error('Socket.IO nie został zainicjalizowany');
+    return false;
+  }
 
   try {
-    const socketStreamId = streamData.streamId.toString();
-    const socketStreamerId = streamData.streamerId.toString();
-
-    console.log('streamerId', socketStreamerId);
-    console.log('streamId', socketStreamId);
-
-    // 1. Dodaj stream do pamięci
-    await SocketState.createStream(
-      socketStreamId,
-      socketStreamerId,
-      streamData.title,
-      streamData.description,
-      streamData.category || 'default',
-      streamData.streamerName,
-      streamData.isPublic
-    );
-
-    // 3. Powiadom wszystkich o nowej transmisji
-
     // 4. Powiadom subskrybentów tego streamera
     // const subscribers = SocketState.streamSubscribers.get(socketStreamerId);
     await Promise.all(
@@ -206,7 +224,7 @@ export const broadcastNewStream = async (streamData: {
       })
     );
 
-    console.log(`Broadcasted new stream: ${streamData.title} by ${streamData.streamerName}`);
+    // console.log(`Broadcasted new stream: ${streamData.title} by ${streamData.streamerName}`);
     return true;
   } catch (error) {
     console.error('Error broadcasting new stream:', error);

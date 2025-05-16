@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { sql } from 'bun';
-import { broadcastNewStream, broadcastPatchStream, broadcastStreamEnd, notifyStreamer } from '../socket';
-import { console } from 'node:inspector';
-import { resolveStreamerTokenCache, tokenCache } from '../middleware/cache';
-import { getStreamerByUsername } from './streamersController';
+import { notifyStreamerSubscribers, broadcastPatchStream, broadcastStreamEnd, notifyStreamer, broadcastStream } from '../socket';
+import { tokenCache } from '../middleware/cache';
 
 interface StreamData {
     access_token: any;
@@ -141,56 +139,13 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
           `;
             res.sendStatus(StatusCodes.OK);
 
-
-            // 2.3. Naprawiony INSERT do notifications
-            //     const subscribers = await sql`
-            //     SELECT s.user_id
-            //     FROM subscribers s
-            //     JOIN users_info ui ON ui.id = s.user_id
-            //     WHERE s.streamer_id = ${streamerId}
-            //       AND ui."isBanned" = FALSE
-            //   `;
-
-            // if (subscribers.length === 0) {
-            //     console.log('No subscribers found for this streamer');
-            //     return [opts, stream, []]; // Zwróć pustą tablicę powiadomień
-            // }
-
-            // // 2. Przygotuj dane do hurtowego INSERT-a
-            // const notificationsData = subscribers.map((sub: { user_id: any; }) => ({
-            //     user_id: sub.user_id,
-            //     stream_id: stream.id,
-            //     message: `${username || 'Streamer'} started streaming!`,
-            // }));
-
-            // 3. Hurtowy insert używając sql([...])
-            //     const notifications = await sql`
-            //     INSERT INTO notifications ${sql(notificationsData)}
-            //     RETURNING *
-            //   `;
-
-            return [
-                // opts,
-                stream
-                // notifications
-            ];
+            return [stream];
         });
-        // console.log('Inserted stream_options:', opts);
-        // console.log('Inserted stream:', stream);
-        // console.log(`Created ${notifications.length} notifications`);
 
-        // 3. Wyślij powiadomienia przez Socket.IO
-        // await broadcastNewStream(
-        //     {
-        //         streamId: stream.id,
-        //         streamerId,
-        //         streamerName: username,
-        //         title: opts.title,
-        //         description: opts.description,
-        //         category: 'default',
-        //     },
-        //     notifications
-        // );
+
+        const newStream = await helperCombineStreams(streamerId);
+
+        await broadcastStream(newStream[0]);
 
         notifyStreamer(stream.id, streamerUserId, username);
 
@@ -321,8 +276,6 @@ export const patchStream = async (req: Request, res: Response) => {
 
         try {
             const [notifications] = await sql.begin(async (sql) => {
-
-                // 2.3. Naprawiony INSERT do notifications
                 const subscribers = await sql`
             SELECT s.user_id
             FROM subscribers s
@@ -357,16 +310,7 @@ export const patchStream = async (req: Request, res: Response) => {
             // console.log(`Created ${notifications.length} notifications`);
 
             // 3. Wyślij powiadomienia przez Socket.IO
-            await broadcastNewStream(
-                {
-                    streamId: streamOptionId,
-                    streamerId,
-                    streamerName: streamerUsername,
-                    title: streamTitle,
-                    description: streamDescription,
-                    category: 'default',
-                    isPublic: streamIsPublic,
-                },
+            await notifyStreamerSubscribers(
                 notifications
             );
 
