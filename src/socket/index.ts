@@ -4,7 +4,6 @@ import { SocketState } from './state';
 import { sql } from 'bun';
 import { handlePublicEvents } from './handlers/publicHandlers';
 import { handleAuthEvents } from './handlers/authHandlers';
-import { isConstructorDeclaration } from 'typescript';
 
 // Instancja Socket.IO
 let io: Server | null = null;
@@ -88,7 +87,6 @@ const handleUserDisconnect = (socket: Socket, io: Server) => {
   SocketState.streams.forEach((streamInfo, streamId: string) => {
     if (streamInfo.roomMembers.has(socket.data.user.userId)) {
       const viewerCount = SocketState.removeViewer(streamId, socket.data.user.userId);
-      io.of('/public').to(streamId).emit('viewerUpdate', viewerCount);
     }
   });
 

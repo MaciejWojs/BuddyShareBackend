@@ -64,7 +64,6 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
     const viewerCount = SocketState.addViewer(streamId, userId);
 
     // Powiadom wszystkich o nowym widzu
-    io.of('/public').to(streamId).emit('viewerUpdate', viewerCount);
     console.log(`updated viewer count for stream ${streamId}: ${viewerCount}`);
   });
 
@@ -76,8 +75,7 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
     const userId = socket.id;
     const viewerCount = SocketState.removeViewer(streamId, userId);
     socket.data.streamId = null;
-
-    io.of('/public').to(streamId).emit('viewerUpdate', viewerCount);
+    console.log(`updated viewer count for stream ${streamId}: ${viewerCount}`);
   });
 
   // Odbieranie wiadomości z chatu (publiczne)
