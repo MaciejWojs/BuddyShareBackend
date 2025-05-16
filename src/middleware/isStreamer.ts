@@ -164,3 +164,37 @@ export const isValidStreamerToken = async (req: Request, res: Response, next: Ne
         });
     }
 }
+
+/**
+ * Opcjonalne middleware: jeśli użytkownik jest streamerem, ustawia req.streamer,
+ * jeśli nie – ustawia req.streamer na null i przechodzi dalej.
+ */
+export const attachStreamerIfExists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const username = req.params.username || req.body.username;
+        if (!username || !req.userInfo) {
+            req.streamer = null;
+            return next();
+        }
+
+        const streamer = await prisma.streamers.findUnique({
+            where: {
+                userId: req.userInfo.user.userId
+            },
+            include: {
+                user: {
+                    include: {
+                        userInfo: true
+                    }
+                }
+            }
+        });
+
+        req.streamer = streamer || null;
+        next();
+    } catch (error) {
+        console.error(`Error in attachStreamerIfExists: ${error}`);
+        req.streamer = null;
+        next();
+    }
+}

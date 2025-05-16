@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { sql } from 'bun';
+import Stream from 'stream';
+import { SocketState } from '../socket/state';
 
 // Rozszerzenie interfejsu Request o pole userInfo
 declare global {
@@ -587,6 +589,22 @@ export const followUser = async (req: Request, res: Response) => {
             message: `User with id: ${followerUserId} followed user with id: ${followedUserId} successfully`
         });
         console.log(`User with id: ${followerUserId} followed user with id: ${followedUserId} successfully`)
+
+
+        if (!req.streamer) return;
+
+        if (!(req.streamer.userId === followedUserId)) {
+            console.log("User is not a streamer, skipping SocketState update");
+            return;
+        }
+
+        console.log("User is a streamer, updating SocketState", req.streamer);
+
+        const streamerId = req.streamer.streamerId.toString();
+        if (SocketState.streamers.has(streamerId)) {
+            console.log("Adding follower to SocketState");
+            SocketState.addFollower(streamerId, followerUserId.toString());
+        }
     }
     catch (error: any) {
         console.error(`Error following user: ${error}`);
@@ -654,6 +672,19 @@ export const unfollowUser = async (req: Request, res: Response) => {
             message: `User with id: ${followerUserId} unfollowed user with id: ${followedUserId} successfully`
         });
         console.log(`User with id: ${followerUserId} unfollowed user with id: ${followedUserId} successfully`);
+
+        
+        if (!req.streamer) return;
+
+        if (!(req.streamer.userId === followedUserId)) {
+            console.log("User is not a streamer, skipping SocketState update");
+            return;
+        }
+        const streamerId = req.streamer.streamerId.toString();
+        if (req.streamer && SocketState.streamers.has(streamerId)) {
+            console.log("Removing follower from SocketState");
+            SocketState.removeFollower(streamerId, followerUserId.toString());
+        }
     }
     catch (error: any) {
         console.error(`Error unfollowing user: ${error}`);
@@ -898,6 +929,35 @@ export const deleteUserNotificationsInBulk = async (req: Request, res: Response)
         });
     } catch (error: any) {
         console.error(`Error deleting user notifications in bulk: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
+        });
+    }
+}
+
+export const getUserSubscriptions = async (req: Request, res: Response) => {
+    console.log("Getting subscriptions for user ID:", req.userInfo.user.userId);
+    try {
+        const subscriptions = await sql`
+            SELECT 
+                s.id AS "subscriberId", 
+                s.user_id AS "userId", 
+                s.streamer_id AS "streamerId", 
+                ui.username AS "streamerUsername", 
+                ui.profile_picture AS "profilePicture"
+            FROM subscribers s
+            JOIN streamers str ON s.streamer_id = str.id
+            JOIN users u ON str.user_id = u.id
+            JOIN users_info ui ON u.user_info_id = ui.id
+            WHERE s.user_id = ${req.userInfo.user.userId}
+        `;
+        subscriptions.subscriberName = req.userInfo.username;
+
+        res.status(StatusCodes.OK).json(subscriptions);
+    }
+    catch (error: any) {
+        console.error(`Error fetching user subscriptions: ${error}`);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
             success: false,
             message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
