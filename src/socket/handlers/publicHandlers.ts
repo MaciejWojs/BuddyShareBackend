@@ -92,7 +92,12 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
       console.error("Stream is not public:", streamId);
       return;
     }
-    const chatHistory = SocketState.getChatHistory(parseInt(streamId));
+    const streamIdNumber = parseInt(streamId);
+    if (Number.isNaN(streamIdNumber)) {
+      console.error("Invalid streamId, not a number:", streamId);
+      return;
+    }
+    const chatHistory = SocketState.getChatHistory(streamIdNumber);
     if (!chatHistory) {
       console.error("Chat history not found for stream:", streamId);
       return;
