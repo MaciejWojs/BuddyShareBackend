@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { SocketState } from '../state';
+import { SocketState, ChatMessage } from '../state';
 
 export const handlePublicEvents = (socket: Socket, io: Server) => {
 
@@ -102,7 +102,7 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
       console.error("Chat history not found for stream:", streamId);
       return;
     }
-    const chatMessages = chatHistory.map((msg) => ({
+    const chatMessages: ChatMessage[] = chatHistory.map((msg: ChatMessage) => ({
       chatMessageId: msg.chatMessageId,
       streamId: msg.streamId,
       userId: msg.userId,

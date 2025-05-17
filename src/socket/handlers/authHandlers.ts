@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { SocketState } from '../state';
+import { SocketState, ChatMessage } from '../state';
 import { sql } from 'bun';
 
 export const handleAuthEvents = (socket: Socket, io: Server) => {
@@ -10,10 +10,10 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
     // Pobierz informacje o streamie przed usunięciem
     const streamInfo = SocketState.getStreamInfo(streamId);
     const viewerCount = streamInfo?.viewers || 0;
-    
+
     // Zakończ stream
     SocketState.endStream(streamId);
-    
+
     // Powiadom wszystkich o zakończeniu transmisji (publiczne)
     publicNsp.emit('streamEnded', {
       streamId,
@@ -54,7 +54,7 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
 
     const username = lastMsg.username || "Anonymous";
     const room = `chat:${data.streamId}`;
-    const chatMessage = {
+    const chatMessage: ChatMessage = {
       chatMessageId: lastMsg.chatMessageId,
       streamId: lastMsg.streamId,
       userId: lastMsg.userId,

@@ -1,4 +1,3 @@
-import { Socket } from 'socket.io';
 import { sql } from 'bun';
 
 // Interfejs dla scentralizowanych informacji o streamie
@@ -24,15 +23,7 @@ interface StreamInfo {
     followers: Array<{ timestamp: number; count: number }>;
   };
   roomMembers: Set<string>;
-  chatMessages: Array<{
-    chatMessageId: number;
-    streamId: number;
-    userId: number;
-    message: string;
-    createdAt: Date;
-    isDeleted: boolean;
-    username: string;
-  }>;
+  chatMessages: Array<ChatMessage>;
 }
 
 interface StreamerInfo {
@@ -43,6 +34,15 @@ interface StreamerInfo {
   activeStreamId: string | null;
 }
 
+export interface ChatMessage {
+  chatMessageId: number;
+  streamId: number;
+  userId: number;
+  message: string;
+  createdAt: Date;
+  isDeleted: boolean;
+  username: string;
+}
 
 export class SocketState {
   static streams = new Map<string, StreamInfo>();
@@ -394,9 +394,9 @@ export class SocketState {
         chatMessageId = result.id;
         createdAt = result.created_at;
       }
-      if (usernameResult){
+      if (usernameResult) {
         username = Array.isArray(usernameResult) ? usernameResult[0].username : usernameResult.username
-      } 
+      }
     });
 
     stream.chatMessages.push({
@@ -411,15 +411,7 @@ export class SocketState {
     if (stream.chatMessages.length > this.CHAT_MESSAGES_LIMIT) stream.chatMessages.shift();
   }
 
-  static getChatHistory(streamId: number): Array<{
-    chatMessageId: number;
-    streamId: number;
-    userId: number;
-    message: string;
-    createdAt: Date;
-    username: string;
-    isDeleted: boolean;
-  }> {
+  static getChatHistory(streamId: number): Array<ChatMessage> {
     const stream = this.streams.get(String(streamId));
     return stream?.chatMessages || [];
   }
