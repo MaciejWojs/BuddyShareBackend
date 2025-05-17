@@ -24,6 +24,14 @@ interface StreamInfo {
     followers: Array<{ timestamp: number; count: number }>;
   };
   roomMembers: Set<string>;
+  chatMessages?: Array<{
+    chatMessageId: number;
+    streamId: number;
+    userId: number;
+    message: string;
+    createdAt: Date;
+    isDeleted: boolean;
+  }>;
 }
 
 interface StreamerInfo {
@@ -34,11 +42,13 @@ interface StreamerInfo {
   activeStreamId: string | null;
 }
 
+
 export class SocketState {
   static streams = new Map<string, StreamInfo>();
   static streamers = new Map<string, StreamerInfo>();
   static streamerToStreamMap = new Map<string, string>();
 
+  static readonly CHAT_MESSAGES_LIMIT = 1000;
   static readonly MAX_HISTORY_POINTS = 1800;
 
   // ---- Stream lifecycle ----
@@ -135,7 +145,8 @@ export class SocketState {
         subscribers: [{ timestamp: Date.now(), count: streamer.subscribers.size }],
         followers: [{ timestamp: Date.now(), count: streamer.followers.size }]
       },
-      roomMembers: new Set()
+      roomMembers: new Set(),
+      chatMessages: []
     });
   }
 
@@ -355,5 +366,48 @@ export class SocketState {
       stream.history.followers = [];
       stream.history.subscribers = [];
     }
+  }
+
+  static async addChatMessage(streamId: number, userId: number, message: string) {
+    const stream = this.streams.get(String(streamId));
+    if (!stream) return;
+    if (!stream.chatMessages) stream.chatMessages = [];
+    let chatMessageId = 0;
+    let createdAt = new Date();
+    await sql.begin(async (tx) => {
+      const result = await tx`
+        INSERT INTO chat_messages (stream_id, user_id, message)
+        VALUES (${streamId}, ${userId}, ${message})
+        RETURNING id, created_at
+      `;
+      if (Array.isArray(result) && result.length > 0) {
+        chatMessageId = result[0].id;
+        createdAt = result[0].created_at;
+      } else if (result && typeof result === 'object') {
+        chatMessageId = result.id;
+        createdAt = result.created_at;
+      }
+    });
+    stream.chatMessages.push({
+      chatMessageId,
+      streamId,
+      userId,
+      message,
+      createdAt,
+      isDeleted: false
+    });
+    if (stream.chatMessages.length > this.CHAT_MESSAGES_LIMIT) stream.chatMessages.shift();
+  }
+
+  static getChatHistory(streamId: number): Array<{
+    chatMessageId: number;
+    streamId: number;
+    userId: number;
+    message: string;
+    createdAt: Date;
+    isDeleted: boolean;
+  }> {
+    const stream = this.streams.get(String(streamId));
+    return stream?.chatMessages || [];
   }
 }

@@ -22,7 +22,7 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
 
     const room = `chat:${streamId}`;
     socket.join(room);
-    console.log(`→ ${socket.id} joined room ${room}`);
+    console.log(`→ ${socket.id} joined chat room ${room}`);
   });
 
   // opuszczanie pokoju czatowego

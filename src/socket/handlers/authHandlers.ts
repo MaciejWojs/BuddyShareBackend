@@ -30,19 +30,36 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
       return;
     }
 
-    // Pobrane z middleware do autoryzacji socketów
-    const username = socket.data.user.userInfo?.username;
-    
+    const userId = socket.data.user.userId;
+    const streamIdNum = Number(data.streamId);
+    if (isNaN(streamIdNum)) {
+      console.error("Invalid streamId (not a number):", data.streamId);
+      return;
+    }
+
+    // Zapisz wiadomość do bazy i do state
+    await SocketState.addChatMessage(streamIdNum, userId, data.message);
+    // Pobierz ostatnią wiadomość (dodana przed chwilą)
+    const chatHistory = SocketState.getChatHistory(streamIdNum);
+    const lastMsg = chatHistory.at(-1);
+    if (!lastMsg) {
+      console.error("Failed to fetch last chat message after insert");
+      return;
+    }
+
+    const username = socket.data.user.userInfo?.username || "Anonymous";
     const room = `chat:${data.streamId}`;
     const chatMessage = {
-      userId: socket.data.user.userId,
-      username: username || "Anonymous",
-      text: data.message,
-      timestamp: new Date().toISOString(),
+      chatMessageId: lastMsg.chatMessageId,
+      streamId: lastMsg.streamId,
+      userId: lastMsg.userId,
+      username,
+      message: lastMsg.message,
+      createdAt: lastMsg.createdAt,
+      isDeleted: lastMsg.isDeleted
     };
 
     console.log(`AUTH HANDLERS -> Received message for stream ${data.streamId}: ${data.message}`);
-
     console.log(`Message for ${room}:`, chatMessage);
     publicNsp.to(room).emit("chatMessage", chatMessage);
   });
