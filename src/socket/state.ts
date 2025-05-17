@@ -24,7 +24,7 @@ interface StreamInfo {
     followers: Array<{ timestamp: number; count: number }>;
   };
   roomMembers: Set<string>;
-  chatMessages?: Array<{
+  chatMessages: Array<{
     chatMessageId: number;
     streamId: number;
     userId: number;
