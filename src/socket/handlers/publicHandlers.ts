@@ -98,7 +98,7 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
       return;
     }
     const chatHistory = SocketState.getChatHistory(streamIdNumber);
-    if (!chatHistory) {
+    if (!chatHistory || chatHistory.length === 0) {
       console.error("Chat history not found for stream:", streamId);
       return;
     }

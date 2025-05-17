@@ -38,7 +38,12 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
     }
 
     // Zapisz wiadomość do bazy i do state
-    await SocketState.addChatMessage(streamIdNum, userId, data.message);
+    try {
+      await SocketState.addChatMessage(streamIdNum, userId, data.message);
+    } catch (error) {
+      console.error("Failed to add chat message to the database:", error);
+      return;
+    }
     // Pobierz ostatnią wiadomość (dodana przed chwilą)
     const chatHistory = SocketState.getChatHistory(streamIdNum);
     const lastMsg = chatHistory.at(-1);
@@ -47,7 +52,7 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
       return;
     }
 
-    const username = socket.data.user.userInfo?.username || "Anonymous";
+    const username = lastMsg.username || "Anonymous";
     const room = `chat:${data.streamId}`;
     const chatMessage = {
       chatMessageId: lastMsg.chatMessageId,
