@@ -31,6 +31,7 @@ interface StreamInfo {
     message: string;
     createdAt: Date;
     isDeleted: boolean;
+    username: string;
   }>;
 }
 
@@ -374,11 +375,17 @@ export class SocketState {
     if (!stream.chatMessages) stream.chatMessages = [];
     let chatMessageId = 0;
     let createdAt = new Date();
+    let username = 'Anonymous';
     await sql.begin(async (tx) => {
       const result = await tx`
         INSERT INTO chat_messages (stream_id, user_id, message)
         VALUES (${streamId}, ${userId}, ${message})
         RETURNING id, created_at
+      `;
+      const usernameResult = await tx`
+        SELECT username
+        FROM users_info
+        WHERE id = ${userId}
       `;
       if (Array.isArray(result) && result.length > 0) {
         chatMessageId = result[0].id;
@@ -387,14 +394,19 @@ export class SocketState {
         chatMessageId = result.id;
         createdAt = result.created_at;
       }
+      if (usernameResult){
+        username = Array.isArray(usernameResult) ? usernameResult[0].username : usernameResult.username
+      } 
     });
+
     stream.chatMessages.push({
       chatMessageId,
       streamId,
       userId,
       message,
       createdAt,
-      isDeleted: false
+      isDeleted: false,
+      username
     });
     if (stream.chatMessages.length > this.CHAT_MESSAGES_LIMIT) stream.chatMessages.shift();
   }
@@ -405,6 +417,7 @@ export class SocketState {
     userId: number;
     message: string;
     createdAt: Date;
+    username: string;
     isDeleted: boolean;
   }> {
     const stream = this.streams.get(String(streamId));
