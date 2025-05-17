@@ -61,7 +61,9 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
       username,
       message: lastMsg.message,
       createdAt: lastMsg.createdAt,
-      isDeleted: lastMsg.isDeleted
+      isDeleted: lastMsg.isDeleted,
+      type: lastMsg.type,
+      avatar: lastMsg.avatar || null,
     };
 
     console.log(`AUTH HANDLERS -> Received message for stream ${data.streamId}: ${data.message}`);

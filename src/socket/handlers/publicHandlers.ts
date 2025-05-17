@@ -1,6 +1,15 @@
 import { Server, Socket } from 'socket.io';
 import { SocketState, ChatMessage } from '../state';
 
+enum ChatAction {
+  // EDIT = 'edit',
+  DELETE = 'delete',
+  TIMEOUT = 'timeout',
+  UNTIMEOUT = 'untimeout',
+  UNBAN = 'unban',
+  BAN = 'ban',
+}
+
 export const handlePublicEvents = (socket: Socket, io: Server) => {
 
   // dołączanie do pokoju czatowego
@@ -109,18 +118,54 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
       username: msg.username,
       message: msg.message,
       createdAt: msg.createdAt,
-      isDeleted: msg.isDeleted
+      isDeleted: msg.isDeleted,
+      avatar: msg.avatar, // <-- dodaj avatar
+      type: msg.type,     // <-- opcjonalnie, jeśli chcesz przekazać typ
     }));
     console.log(`Chat history for stream ${streamId}:`, chatMessages);
     socket.emit("allMessages", chatMessages);
   });
 
-  // Odbieranie wiadomości z chatu (publiczne)
-  socket.on('subscribeToChat', (streamId: string) => {
-    socket.join(`chat:${streamId}`);
-  });
+  socket.on('manageChat', async (message: ChatMessage, action: ChatAction) => {
+    //! TODO: przenieść do authHandlers dla bezpieczeństwa (teraz tylko na frontendzie jest sprawdzane)
+    console.log("manageChat", message, action);
+    if (!message.streamId) {
+      console.error("Invalid streamId:", message.streamId);
+      return;
+    }
+    const stream = SocketState.getStreamInfo(String(message.streamId));
+    if (!stream) {
+      console.error("Stream not found:", message.streamId);
+      return;
+    }
+    if (!stream.metadata.isPublic) {
+      console.error("Stream is not public:", message.streamId);
+      return;
+    }
+    const room = `chat:${message.streamId}`;
 
-  socket.on('unsubscribeFromChat', (streamId: string) => {
-    socket.leave(`chat:${streamId}`);
-  });
+    switch (action) {
+      case ChatAction.DELETE:
+        const updatedMessage = await SocketState.deleteChatMessage(message);
+        io.of('/public').to(room).emit("patchChatMessage", updatedMessage);
+        console.log(`Deleted message ${message.chatMessageId} from stream ${message.streamId}`);
+        break;
+      // case ChatAction.TIMEOUT:
+      //   SocketState.timeoutUser(message.userId, message.streamId);
+      //   break;
+      // case ChatAction.UNTIMEOUT:
+      //   SocketState.untimeoutUser(message.userId, message.streamId);
+      //   break;
+      // case ChatAction.BAN:
+      //   SocketState.banUser(message.userId, message.streamId);
+      //   break;
+      // case ChatAction.UNBAN:
+      //   SocketState.unbanUser(message.userId, message.streamId);
+      //   break;
+      default:
+        console.error("Invalid action:", action);
+        return;
+    }
+    // socket.to(room).emit("manageChat", data);
+  })
 };

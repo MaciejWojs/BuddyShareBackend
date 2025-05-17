@@ -42,6 +42,8 @@ export interface ChatMessage {
   createdAt: Date;
   isDeleted: boolean;
   username: string;
+  avatar: string | null;
+  type?: "user" | "system";
 }
 
 export class SocketState {
@@ -376,14 +378,15 @@ export class SocketState {
     let chatMessageId = 0;
     let createdAt = new Date();
     let username = 'Anonymous';
+    let avatar: string | null = null;
     await sql.begin(async (tx) => {
       const result = await tx`
         INSERT INTO chat_messages (stream_id, user_id, message)
         VALUES (${streamId}, ${userId}, ${message})
         RETURNING id, created_at
       `;
-      const usernameResult = await tx`
-        SELECT username
+      const userResult = await tx`
+        SELECT username, profile_picture
         FROM users_info
         WHERE id = ${userId}
       `;
@@ -394,8 +397,14 @@ export class SocketState {
         chatMessageId = result.id;
         createdAt = result.created_at;
       }
-      if (usernameResult) {
-        username = Array.isArray(usernameResult) ? usernameResult[0].username : usernameResult.username
+      if (userResult) {
+        if (Array.isArray(userResult)) {
+          username = userResult[0]?.username || 'Anonymous';
+          avatar = userResult[0]?.avatar || null;
+        } else {
+          username = userResult.username || 'Anonymous';
+          avatar = userResult.avatar || null;
+        }
       }
     });
 
@@ -406,7 +415,9 @@ export class SocketState {
       message,
       createdAt,
       isDeleted: false,
-      username
+      username,
+      avatar,
+      type: 'user'
     });
     if (stream.chatMessages.length > this.CHAT_MESSAGES_LIMIT) stream.chatMessages.shift();
   }
@@ -414,5 +425,27 @@ export class SocketState {
   static getChatHistory(streamId: number): Array<ChatMessage> {
     const stream = this.streams.get(String(streamId));
     return stream?.chatMessages || [];
+  }
+
+  static async deleteChatMessage(message: ChatMessage) {
+    const stream = this.streams.get(String(message.streamId));
+    if (!stream) return;
+    const chatMessage = stream.chatMessages.find((msg) => msg.chatMessageId === message.chatMessageId);
+    const idx = stream.chatMessages.findIndex((msg) => msg.chatMessageId === message.chatMessageId);
+    if (chatMessage && idx !== -1) {
+      chatMessage.isDeleted = true;
+      chatMessage.message = 'This message has been deleted';
+      chatMessage.type = 'system';
+      stream.chatMessages[idx] = chatMessage;
+      await sql.begin(async (tx) => {
+        await tx`
+          UPDATE chat_messages
+          SET is_deleted = true, message = 'This message has been deleted'
+          WHERE id = ${chatMessage.chatMessageId}
+        `;
+      }
+      );
+      return chatMessage;
+    }
   }
 }
