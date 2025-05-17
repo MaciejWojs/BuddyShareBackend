@@ -1,4 +1,3 @@
-import { Socket } from 'socket.io';
 import { sql } from 'bun';
 
 // Interfejs dla scentralizowanych informacji o streamie
@@ -24,6 +23,7 @@ interface StreamInfo {
     followers: Array<{ timestamp: number; count: number }>;
   };
   roomMembers: Set<string>;
+  chatMessages: Array<ChatMessage>;
 }
 
 interface StreamerInfo {
@@ -34,11 +34,24 @@ interface StreamerInfo {
   activeStreamId: string | null;
 }
 
+export interface ChatMessage {
+  chatMessageId: number;
+  streamId: number;
+  userId: number;
+  message: string;
+  createdAt: Date;
+  isDeleted: boolean;
+  username: string;
+  avatar: string | null;
+  type?: "user" | "system";
+}
+
 export class SocketState {
   static streams = new Map<string, StreamInfo>();
   static streamers = new Map<string, StreamerInfo>();
   static streamerToStreamMap = new Map<string, string>();
 
+  static readonly CHAT_MESSAGES_LIMIT = 1000;
   static readonly MAX_HISTORY_POINTS = 1800;
 
   // ---- Stream lifecycle ----
@@ -135,7 +148,8 @@ export class SocketState {
         subscribers: [{ timestamp: Date.now(), count: streamer.subscribers.size }],
         followers: [{ timestamp: Date.now(), count: streamer.followers.size }]
       },
-      roomMembers: new Set()
+      roomMembers: new Set(),
+      chatMessages: []
     });
   }
 
@@ -354,6 +368,84 @@ export class SocketState {
       stream.history.viewers = [];
       stream.history.followers = [];
       stream.history.subscribers = [];
+    }
+  }
+
+  static async addChatMessage(streamId: number, userId: number, message: string) {
+    const stream = this.streams.get(String(streamId));
+    if (!stream) return;
+    if (!stream.chatMessages) stream.chatMessages = [];
+    let chatMessageId = 0;
+    let createdAt = new Date();
+    let username = 'Anonymous';
+    let avatar: string | null = null;
+    await sql.begin(async (tx) => {
+      const result = await tx`
+        INSERT INTO chat_messages (stream_id, user_id, message)
+        VALUES (${streamId}, ${userId}, ${message})
+        RETURNING id, created_at
+      `;
+      const userResult = await tx`
+        SELECT username, profile_picture
+        FROM users_info
+        WHERE id = ${userId}
+      `;
+      if (Array.isArray(result) && result.length > 0) {
+        chatMessageId = result[0].id;
+        createdAt = result[0].created_at;
+      } else if (result && typeof result === 'object') {
+        chatMessageId = result.id;
+        createdAt = result.created_at;
+      }
+      if (userResult) {
+        if (Array.isArray(userResult)) {
+          username = userResult[0]?.username || 'Anonymous';
+          avatar = userResult[0]?.avatar || null;
+        } else {
+          username = userResult.username || 'Anonymous';
+          avatar = userResult.avatar || null;
+        }
+      }
+    });
+
+    stream.chatMessages.push({
+      chatMessageId,
+      streamId,
+      userId,
+      message,
+      createdAt,
+      isDeleted: false,
+      username,
+      avatar,
+      type: 'user'
+    });
+    if (stream.chatMessages.length > this.CHAT_MESSAGES_LIMIT) stream.chatMessages.shift();
+  }
+
+  static getChatHistory(streamId: number): Array<ChatMessage> {
+    const stream = this.streams.get(String(streamId));
+    return stream?.chatMessages || [];
+  }
+
+  static async deleteChatMessage(message: ChatMessage) {
+    const stream = this.streams.get(String(message.streamId));
+    if (!stream) return;
+    const chatMessage = stream.chatMessages.find((msg) => msg.chatMessageId === message.chatMessageId);
+    const idx = stream.chatMessages.findIndex((msg) => msg.chatMessageId === message.chatMessageId);
+    if (chatMessage && idx !== -1) {
+      chatMessage.isDeleted = true;
+      chatMessage.message = 'This message has been deleted';
+      chatMessage.type = 'system';
+      stream.chatMessages[idx] = chatMessage;
+      await sql.begin(async (tx) => {
+        await tx`
+          UPDATE chat_messages
+          SET is_deleted = true, message = 'This message has been deleted'
+          WHERE id = ${chatMessage.chatMessageId}
+        `;
+      }
+      );
+      return chatMessage;
     }
   }
 }
