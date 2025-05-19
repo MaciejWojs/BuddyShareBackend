@@ -322,16 +322,19 @@ export const startStatsEmission = () => {
   setInterval(() => {
     // Dla każdego aktywnego streamu wyślij statystyki
     SocketState.streams.forEach((streamInfo, streamId) => {
-
-      if (!streamInfo.metadata.isLive) return;
-
-      const streamerName = streamInfo.metadata.streamerName;
-
-      if (!streamerName) return;
+      if (!streamInfo.metadata.isLive || !streamInfo.metadata.streamerName) {
+        console.warn(`Stream ${streamId} is not live or streamer name is missing. Skipping stats emission.`);
+        return;
+      }
 
       const viewerCount = streamInfo.viewers;
       const subscribersCount = streamInfo.subscribers;
       const followersCount = streamInfo.followers;
+      const chatMessagesCount = streamInfo.chatMessages.length;
+      // Wyznacz top 5 aktywnych użytkowników (ostatni punkt z historii)
+      const topChatters = streamInfo.history.topChatters.length > 0
+        ? streamInfo.history.topChatters[streamInfo.history.topChatters.length - 1].users
+        : [];
 
       SocketState.updateHistory(streamId);
 
@@ -342,22 +345,18 @@ export const startStatsEmission = () => {
         stats: {
           viewers: viewerCount,
           followers: followersCount,
-          subscribers: subscribersCount
+          subscribers: subscribersCount,
+          chatMessages: chatMessagesCount,
+          topChatters: topChatters
         },
-        // Dołącz pełną historię danych
+        // Dołącz pełną historię danych (w tym chatMessages i topChatters)
         history: streamInfo.history
       };
 
-      // console.log('subscribers')
-
-      // Wyślij te same dane do wszystkich zainteresowanych stron (pokój streamu)
       io!.of('/public').to(streamId).emit('streamStats', statsPackage);
 
-      // console.log(`Emitting stats for stream ${streamId}: `, statsPackage);
-
-      // Zapisz w logach tylko co 10 sekund, aby nie zaśmiecać konsoli
       if (Date.now() % 10000 < STATS_INTERVAL) {
-        console.log(`Emitting stats for stream ${streamId}: ${viewerCount} viewers | ${subscribersCount} subscribers | ${followersCount} followers`);
+        console.log(`Emitting stats for stream ${streamId}: ${viewerCount} viewers | ${subscribersCount} subscribers | ${followersCount} followers | ${chatMessagesCount} chatMessages`);
       }
     });
   }, STATS_INTERVAL);

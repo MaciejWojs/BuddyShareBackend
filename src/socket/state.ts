@@ -17,11 +17,7 @@ interface StreamInfo {
     isLive: boolean;
     isPublic: boolean;
   };
-  history: {
-    viewers: Array<{ timestamp: number; count: number }>;
-    subscribers: Array<{ timestamp: number; count: number }>;
-    followers: Array<{ timestamp: number; count: number }>;
-  };
+  history: StreamHistory;
   roomMembers: Set<string>;
   chatMessages: Array<ChatMessage>;
 }
@@ -45,6 +41,15 @@ export interface ChatMessage {
   avatar: string | null;
   type?: "user" | "system";
 }
+
+// Typ historii statystyk streama (do wykresów, frontend, itp.)
+export type StreamHistory = {
+  viewers: Array<{ timestamp: number; count: number }>;
+  subscribers: Array<{ timestamp: number; count: number }>;
+  followers: Array<{ timestamp: number; count: number }>;
+  chatMessages: Array<{ timestamp: number; count: number }>;
+  topChatters: Array<{ timestamp: number; users: Array<{ userId: string; count: number; username: string }> }>;
+};
 
 export class SocketState {
   static streams = new Map<string, StreamInfo>();
@@ -146,7 +151,9 @@ export class SocketState {
       history: {
         viewers: [],
         subscribers: [{ timestamp: Date.now(), count: streamer.subscribers.size }],
-        followers: [{ timestamp: Date.now(), count: streamer.followers.size }]
+        followers: [{ timestamp: Date.now(), count: streamer.followers.size }],
+        chatMessages: [{ timestamp: Date.now(), count: 0 }], // NOWE
+        topChatters: [{ timestamp: Date.now(), users: [] }] // NOWE
       },
       roomMembers: new Set(),
       chatMessages: []
@@ -318,6 +325,34 @@ export class SocketState {
     while (arr.length > this.MAX_HISTORY_POINTS) arr.shift();
   }
 
+  private static addChatHistoryPoint(streamId: string) {
+    const stream = this.streams.get(streamId);
+    if (!stream) return;
+
+    // Liczba wiadomości w czacie (tylko nieusunięte)
+    const count = stream.chatMessages.filter(msg => !msg.isDeleted).length;
+    stream.history.chatMessages.push({ timestamp: Date.now(), count });
+    while (stream.history.chatMessages.length > this.MAX_HISTORY_POINTS) stream.history.chatMessages.shift();
+
+    // Top 5 aktywnych użytkowników
+    const userMsgCount: Record<string, { count: number; username: string }> = {};
+    for (const msg of stream.chatMessages) {
+      if (!msg.isDeleted) {
+        if (!userMsgCount[msg.userId]) {
+          userMsgCount[msg.userId] = { count: 0, username: msg.username };
+        }
+        userMsgCount[msg.userId].count += 1;
+      }
+    }
+    const topUsers = Object.entries(userMsgCount)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([userId, data]) => ({ userId, count: data.count, username: data.username }));
+
+    stream.history.topChatters.push({ timestamp: Date.now(), users: topUsers });
+    while (stream.history.topChatters.length > this.MAX_HISTORY_POINTS) stream.history.topChatters.shift();
+  }
+
   static updateHistory(streamId: string) {
     // console.log('[updateHistory]', { streamId });
     const stream = this.streams.get(streamId);
@@ -328,6 +363,7 @@ export class SocketState {
     this.addHistoryPoint(streamId, 'viewers', viewers);
     this.addHistoryPoint(streamId, 'subscribers', subscribers);
     this.addHistoryPoint(streamId, 'followers', followers);
+    this.addChatHistoryPoint(streamId);
   }
 
   // ---- Convenience for stats emission ----
@@ -360,7 +396,7 @@ export class SocketState {
     return this.streamers.get(streamerId)?.activeStreamId || null;
   }
 
-  static clearStreamHistory(streamId: string, type?: 'viewers' | 'followers' | 'subscribers') {
+  static clearStreamHistory(streamId: string, type?: 'viewers' | 'followers' | 'subscribers' | 'chatMessages' | 'topChatters') {
     const stream = this.streams.get(streamId);
     if (!stream) return;
     if (type) stream.history[type] = [];
@@ -368,6 +404,8 @@ export class SocketState {
       stream.history.viewers = [];
       stream.history.followers = [];
       stream.history.subscribers = [];
+      stream.history.chatMessages = [];
+      stream.history.topChatters = [];
     }
   }
 
@@ -443,8 +481,7 @@ export class SocketState {
           SET is_deleted = true, message = 'This message has been deleted'
           WHERE id = ${chatMessage.chatMessageId}
         `;
-      }
-      );
+      });
       return chatMessage;
     }
   }
