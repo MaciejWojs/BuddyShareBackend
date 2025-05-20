@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { SocketState, ChatMessage } from '../state';
+import { SocketState, ChatMessage, BanOptions } from '../state';
 
 enum ChatAction {
   // EDIT = 'edit',
@@ -126,7 +126,7 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
     socket.emit("allMessages", chatMessages);
   });
 
-  socket.on('manageChat', async (message: ChatMessage, action: ChatAction) => {
+  socket.on('manageChat', async (message: ChatMessage, action: ChatAction, options?: BanOptions) => {
     //! TODO: przenieść do authHandlers dla bezpieczeństwa (teraz tylko na frontendzie jest sprawdzane)
     console.log("manageChat", message, action);
     if (!message.streamId) {
@@ -156,9 +156,9 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
       // case ChatAction.UNTIMEOUT:
       //   SocketState.untimeoutUser(message.userId, message.streamId);
       //   break;
-      // case ChatAction.BAN:
-      //   SocketState.banUser(message.userId, message.streamId);
-      //   break;
+      case ChatAction.BAN:
+        SocketState.banUser(message.userId, message.streamId, options);
+        break;
       // case ChatAction.UNBAN:
       //   SocketState.unbanUser(message.userId, message.streamId);
       //   break;

@@ -39,7 +39,12 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
 
     // Zapisz wiadomość do bazy i do state
     try {
-      await SocketState.addChatMessage(streamIdNum, userId, data.message);
+      const success = await SocketState.addChatMessage(streamIdNum, userId, data.message);
+      if (!success) {
+        socket.emit("chatMessageError", "You are not allowed to send messages in this stream.");
+        console.error("User is not allowed to send messages in this stream:", userId);
+        return;
+      }
     } catch (error) {
       console.error("Failed to add chat message to the database:", error);
       return;

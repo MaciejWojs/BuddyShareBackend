@@ -20,6 +20,7 @@ interface StreamInfo {
   history: StreamHistory;
   roomMembers: Set<string>;
   chatMessages: Array<ChatMessage>;
+  bannedUsers: Set<string>; // NOWE
 }
 
 interface StreamerInfo {
@@ -40,6 +41,13 @@ export interface ChatMessage {
   username: string;
   avatar: string | null;
   type?: "user" | "system";
+}
+
+export type BanOptions = {
+  reason?: string;
+  bannedBy?: number;
+  bannedUntil?: Date | null;
+  isPermanent?: boolean;
 }
 
 // Typ historii statystyk streama (do wykresów, frontend, itp.)
@@ -116,6 +124,21 @@ export class SocketState {
       return acc;
     }, new Set<string>());
 
+    // Pobierz zbanowanych użytkowników dla tego streamera
+    const bannedRows = await sql`
+      SELECT user_id FROM banned_users_per_streamer WHERE streamer_id = ${streamerId} AND (banned_until IS NULL OR banned_until > NOW())
+    `;
+    let bannedUsersArr: { user_id: string }[] = [];
+    if (Array.isArray(bannedRows)) {
+      bannedUsersArr = bannedRows;
+    } else if (bannedRows && typeof bannedRows === 'object' && 'user_id' in bannedRows) {
+      bannedUsersArr = [bannedRows];
+    }
+    const bannedUsersSet = bannedUsersArr.reduce((acc: Set<string>, row: { user_id: string }) => {
+      acc.add(String(row.user_id));
+      return acc;
+    }, new Set<string>());
+
     if (!this.streamers.has(streamerId)) {
       this.streamers.set(streamerId, {
         streamerId,
@@ -156,7 +179,8 @@ export class SocketState {
         topChatters: [{ timestamp: Date.now(), users: [] }] // NOWE
       },
       roomMembers: new Set(),
-      chatMessages: []
+      chatMessages: [],
+      bannedUsers: bannedUsersSet // NOWE
     });
   }
 
@@ -413,6 +437,11 @@ export class SocketState {
     const stream = this.streams.get(String(streamId));
     if (!stream) return;
     if (!stream.chatMessages) stream.chatMessages = [];
+    // Sprawdź czy użytkownik jest zbanowany
+    if (stream.bannedUsers && stream.bannedUsers.has(String(userId))) {
+      // Możesz tu dodać logowanie lub obsługę powiadomienia
+      return false;
+    }
     let chatMessageId = 0;
     let createdAt = new Date();
     let username = 'Anonymous';
@@ -458,6 +487,7 @@ export class SocketState {
       type: 'user'
     });
     if (stream.chatMessages.length > this.CHAT_MESSAGES_LIMIT) stream.chatMessages.shift();
+    return true;
   }
 
   static getChatHistory(streamId: number): Array<ChatMessage> {
@@ -484,5 +514,48 @@ export class SocketState {
       });
       return chatMessage;
     }
+  }
+
+  static async banUser(userId: number, streamId: number, options?: BanOptions) {
+    const reason = options?.reason || "Unknown reason";
+    const bannedBy = options?.bannedBy || null;
+    const bannedUntil = options?.bannedUntil || null;
+    const isPermanent = options?.isPermanent !== undefined ? options.isPermanent : true;
+    const streamerId = this.getStreamerId(String(streamId));
+    if (!streamerId) {
+      console.error(`Streamer ID not found for stream ID: ${streamId}`);
+      return;
+    }
+
+    try {
+      await sql.begin(async (tx) => {
+        await tx`
+          INSERT INTO banned_users_per_streamer (user_id, streamer_id, reason, banned_by, banned_since, banned_until, is_permanent)
+          VALUES (
+            ${userId},
+            ${streamerId},
+            ${reason},
+            ${bannedBy},
+            NOW(),
+            ${bannedUntil},
+            ${isPermanent}
+          )
+        `;
+      });
+      // Dodaj użytkownika do listy zbanowanych w state
+      const stream = this.streams.get(String(streamId));
+      if (stream) {
+        stream.bannedUsers.add(String(userId));
+      }
+    }
+    catch (e) {
+      console.error('Error banning user:', e);
+    }
+  }
+
+  static getStreamerId(streamId: string): string | null {
+    const stream = this.streams.get(streamId);
+    if (!stream) return null;
+    return stream.metadata.streamerId;
   }
 }
