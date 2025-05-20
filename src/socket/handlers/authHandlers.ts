@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { SocketState } from '../state';
+import { SocketState, ChatMessage } from '../state';
 import { sql } from 'bun';
 
 export const handleAuthEvents = (socket: Socket, io: Server) => {
@@ -10,10 +10,10 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
     // Pobierz informacje o streamie przed usunięciem
     const streamInfo = SocketState.getStreamInfo(streamId);
     const viewerCount = streamInfo?.viewers || 0;
-    
+
     // Zakończ stream
     SocketState.endStream(streamId);
-    
+
     // Powiadom wszystkich o zakończeniu transmisji (publiczne)
     publicNsp.emit('streamEnded', {
       streamId,
@@ -30,19 +30,48 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
       return;
     }
 
-    // Pobrane z middleware do autoryzacji socketów
-    const username = socket.data.user.userInfo?.username;
-    
+    const userId = socket.data.user.userId;
+    const streamIdNum = Number(data.streamId);
+    if (isNaN(streamIdNum)) {
+      console.error("Invalid streamId (not a number):", data.streamId);
+      return;
+    }
+
+    // Zapisz wiadomość do bazy i do state
+    try {
+      const success = await SocketState.addChatMessage(streamIdNum, userId, data.message);
+      if (!success) {
+        socket.emit("chatMessageError", "You are not allowed to send messages in this stream.");
+        console.error("User is not allowed to send messages in this stream:", userId);
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to add chat message to the database:", error);
+      return;
+    }
+    // Pobierz ostatnią wiadomość (dodana przed chwilą)
+    const chatHistory = SocketState.getChatHistory(streamIdNum);
+    const lastMsg = chatHistory.at(-1);
+    if (!lastMsg) {
+      console.error("Failed to fetch last chat message after insert");
+      return;
+    }
+
+    const username = lastMsg.username || "Anonymous";
     const room = `chat:${data.streamId}`;
-    const chatMessage = {
-      userId: socket.data.user.userId,
-      username: username || "Anonymous",
-      text: data.message,
-      timestamp: new Date().toISOString(),
+    const chatMessage: ChatMessage = {
+      chatMessageId: lastMsg.chatMessageId,
+      streamId: lastMsg.streamId,
+      userId: lastMsg.userId,
+      username,
+      message: lastMsg.message,
+      createdAt: lastMsg.createdAt,
+      isDeleted: lastMsg.isDeleted,
+      type: lastMsg.type,
+      avatar: lastMsg.avatar || null,
     };
 
     console.log(`AUTH HANDLERS -> Received message for stream ${data.streamId}: ${data.message}`);
-
     console.log(`Message for ${room}:`, chatMessage);
     publicNsp.to(room).emit("chatMessage", chatMessage);
   });

@@ -1,4 +1,3 @@
-import { Socket } from 'socket.io';
 import { sql } from 'bun';
 
 // Interfejs dla scentralizowanych informacji o streamie
@@ -18,12 +17,10 @@ interface StreamInfo {
     isLive: boolean;
     isPublic: boolean;
   };
-  history: {
-    viewers: Array<{ timestamp: number; count: number }>;
-    subscribers: Array<{ timestamp: number; count: number }>;
-    followers: Array<{ timestamp: number; count: number }>;
-  };
+  history: StreamHistory;
   roomMembers: Set<string>;
+  chatMessages: Array<ChatMessage>;
+  bannedUsers: Set<string>; // NOWE
 }
 
 interface StreamerInfo {
@@ -34,11 +31,40 @@ interface StreamerInfo {
   activeStreamId: string | null;
 }
 
+export interface ChatMessage {
+  chatMessageId: number;
+  streamId: number;
+  userId: number;
+  message: string;
+  createdAt: Date;
+  isDeleted: boolean;
+  username: string;
+  avatar: string | null;
+  type?: "user" | "system";
+}
+
+export type BanOptions = {
+  reason?: string;
+  bannedBy?: number;
+  bannedUntil?: Date | null;
+  isPermanent?: boolean;
+}
+
+// Typ historii statystyk streama (do wykresów, frontend, itp.)
+export type StreamHistory = {
+  viewers: Array<{ timestamp: number; count: number }>;
+  subscribers: Array<{ timestamp: number; count: number }>;
+  followers: Array<{ timestamp: number; count: number }>;
+  chatMessages: Array<{ timestamp: number; count: number }>;
+  topChatters: Array<{ timestamp: number; users: Array<{ userId: string; count: number; username: string }> }>;
+};
+
 export class SocketState {
   static streams = new Map<string, StreamInfo>();
   static streamers = new Map<string, StreamerInfo>();
   static streamerToStreamMap = new Map<string, string>();
 
+  static readonly CHAT_MESSAGES_LIMIT = 1000;
   static readonly MAX_HISTORY_POINTS = 1800;
 
   // ---- Stream lifecycle ----
@@ -98,6 +124,21 @@ export class SocketState {
       return acc;
     }, new Set<string>());
 
+    // Pobierz zbanowanych użytkowników dla tego streamera
+    const bannedRows = await sql`
+      SELECT user_id FROM banned_users_per_streamer WHERE streamer_id = ${streamerId} AND (banned_until IS NULL OR banned_until > NOW())
+    `;
+    let bannedUsersArr: { user_id: string }[] = [];
+    if (Array.isArray(bannedRows)) {
+      bannedUsersArr = bannedRows;
+    } else if (bannedRows && typeof bannedRows === 'object' && 'user_id' in bannedRows) {
+      bannedUsersArr = [bannedRows];
+    }
+    const bannedUsersSet = bannedUsersArr.reduce((acc: Set<string>, row: { user_id: string }) => {
+      acc.add(String(row.user_id));
+      return acc;
+    }, new Set<string>());
+
     if (!this.streamers.has(streamerId)) {
       this.streamers.set(streamerId, {
         streamerId,
@@ -133,9 +174,13 @@ export class SocketState {
       history: {
         viewers: [],
         subscribers: [{ timestamp: Date.now(), count: streamer.subscribers.size }],
-        followers: [{ timestamp: Date.now(), count: streamer.followers.size }]
+        followers: [{ timestamp: Date.now(), count: streamer.followers.size }],
+        chatMessages: [{ timestamp: Date.now(), count: 0 }], // NOWE
+        topChatters: [{ timestamp: Date.now(), users: [] }] // NOWE
       },
-      roomMembers: new Set()
+      roomMembers: new Set(),
+      chatMessages: [],
+      bannedUsers: bannedUsersSet // NOWE
     });
   }
 
@@ -304,6 +349,34 @@ export class SocketState {
     while (arr.length > this.MAX_HISTORY_POINTS) arr.shift();
   }
 
+  private static addChatHistoryPoint(streamId: string) {
+    const stream = this.streams.get(streamId);
+    if (!stream) return;
+
+    // Liczba wiadomości w czacie (tylko nieusunięte)
+    const count = stream.chatMessages.filter(msg => !msg.isDeleted).length;
+    stream.history.chatMessages.push({ timestamp: Date.now(), count });
+    while (stream.history.chatMessages.length > this.MAX_HISTORY_POINTS) stream.history.chatMessages.shift();
+
+    // Top 5 aktywnych użytkowników
+    const userMsgCount: Record<string, { count: number; username: string }> = {};
+    for (const msg of stream.chatMessages) {
+      if (!msg.isDeleted) {
+        if (!userMsgCount[msg.userId]) {
+          userMsgCount[msg.userId] = { count: 0, username: msg.username };
+        }
+        userMsgCount[msg.userId].count += 1;
+      }
+    }
+    const topUsers = Object.entries(userMsgCount)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([userId, data]) => ({ userId, count: data.count, username: data.username }));
+
+    stream.history.topChatters.push({ timestamp: Date.now(), users: topUsers });
+    while (stream.history.topChatters.length > this.MAX_HISTORY_POINTS) stream.history.topChatters.shift();
+  }
+
   static updateHistory(streamId: string) {
     // console.log('[updateHistory]', { streamId });
     const stream = this.streams.get(streamId);
@@ -314,6 +387,7 @@ export class SocketState {
     this.addHistoryPoint(streamId, 'viewers', viewers);
     this.addHistoryPoint(streamId, 'subscribers', subscribers);
     this.addHistoryPoint(streamId, 'followers', followers);
+    this.addChatHistoryPoint(streamId);
   }
 
   // ---- Convenience for stats emission ----
@@ -346,7 +420,7 @@ export class SocketState {
     return this.streamers.get(streamerId)?.activeStreamId || null;
   }
 
-  static clearStreamHistory(streamId: string, type?: 'viewers' | 'followers' | 'subscribers') {
+  static clearStreamHistory(streamId: string, type?: 'viewers' | 'followers' | 'subscribers' | 'chatMessages' | 'topChatters') {
     const stream = this.streams.get(streamId);
     if (!stream) return;
     if (type) stream.history[type] = [];
@@ -354,6 +428,134 @@ export class SocketState {
       stream.history.viewers = [];
       stream.history.followers = [];
       stream.history.subscribers = [];
+      stream.history.chatMessages = [];
+      stream.history.topChatters = [];
     }
+  }
+
+  static async addChatMessage(streamId: number, userId: number, message: string) {
+    const stream = this.streams.get(String(streamId));
+    if (!stream) return;
+    if (!stream.chatMessages) stream.chatMessages = [];
+    // Sprawdź czy użytkownik jest zbanowany
+    if (stream.bannedUsers && stream.bannedUsers.has(String(userId))) {
+      // Możesz tu dodać logowanie lub obsługę powiadomienia
+      return false;
+    }
+    let chatMessageId = 0;
+    let createdAt = new Date();
+    let username = 'Anonymous';
+    let avatar: string | null = null;
+    await sql.begin(async (tx) => {
+      const result = await tx`
+        INSERT INTO chat_messages (stream_id, user_id, message)
+        VALUES (${streamId}, ${userId}, ${message})
+        RETURNING id, created_at
+      `;
+      const userResult = await tx`
+        SELECT username, profile_picture
+        FROM users_info
+        WHERE id = ${userId}
+      `;
+      if (Array.isArray(result) && result.length > 0) {
+        chatMessageId = result[0].id;
+        createdAt = result[0].created_at;
+      } else if (result && typeof result === 'object') {
+        chatMessageId = result.id;
+        createdAt = result.created_at;
+      }
+      if (userResult) {
+        if (Array.isArray(userResult)) {
+          username = userResult[0]?.username || 'Anonymous';
+          avatar = userResult[0]?.avatar || null;
+        } else {
+          username = userResult.username || 'Anonymous';
+          avatar = userResult.avatar || null;
+        }
+      }
+    });
+
+    stream.chatMessages.push({
+      chatMessageId,
+      streamId,
+      userId,
+      message,
+      createdAt,
+      isDeleted: false,
+      username,
+      avatar,
+      type: 'user'
+    });
+    if (stream.chatMessages.length > this.CHAT_MESSAGES_LIMIT) stream.chatMessages.shift();
+    return true;
+  }
+
+  static getChatHistory(streamId: number): Array<ChatMessage> {
+    const stream = this.streams.get(String(streamId));
+    return stream?.chatMessages || [];
+  }
+
+  static async deleteChatMessage(message: ChatMessage) {
+    const stream = this.streams.get(String(message.streamId));
+    if (!stream) return;
+    const chatMessage = stream.chatMessages.find((msg) => msg.chatMessageId === message.chatMessageId);
+    const idx = stream.chatMessages.findIndex((msg) => msg.chatMessageId === message.chatMessageId);
+    if (chatMessage && idx !== -1) {
+      chatMessage.isDeleted = true;
+      chatMessage.message = 'This message has been deleted';
+      chatMessage.type = 'system';
+      stream.chatMessages[idx] = chatMessage;
+      await sql.begin(async (tx) => {
+        await tx`
+          UPDATE chat_messages
+          SET is_deleted = true, message = 'This message has been deleted'
+          WHERE id = ${chatMessage.chatMessageId}
+        `;
+      });
+      return chatMessage;
+    }
+  }
+
+  static async banUser(userId: number, streamId: number, options?: BanOptions) {
+    const reason = options?.reason || "Unknown reason";
+    const bannedBy = options?.bannedBy || null;
+    const bannedUntil = options?.bannedUntil || null;
+    const isPermanent = options?.isPermanent !== undefined ? options.isPermanent : true;
+    const streamerId = this.getStreamerId(String(streamId));
+    if (!streamerId) {
+      console.error(`Streamer ID not found for stream ID: ${streamId}`);
+      return;
+    }
+
+    try {
+      await sql.begin(async (tx) => {
+        await tx`
+          INSERT INTO banned_users_per_streamer (user_id, streamer_id, reason, banned_by, banned_since, banned_until, is_permanent)
+          VALUES (
+            ${userId},
+            ${streamerId},
+            ${reason},
+            ${bannedBy},
+            NOW(),
+            ${bannedUntil},
+            ${isPermanent}
+          )
+        `;
+      });
+      // Dodaj użytkownika do listy zbanowanych w state
+      const stream = this.streams.get(String(streamId));
+      if (stream) {
+        stream.bannedUsers.add(String(userId));
+      }
+    }
+    catch (e) {
+      console.error('Error banning user:', e);
+    }
+  }
+
+  static getStreamerId(streamId: string): string | null {
+    const stream = this.streams.get(streamId);
+    if (!stream) return null;
+    return stream.metadata.streamerId;
   }
 }
