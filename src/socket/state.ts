@@ -192,6 +192,16 @@ export class SocketState {
     if (!stream) return;
     stream.metadata.isLive = false;
 
+    // Wyczyść historię, członków pokoju, czat i bany
+    stream.history.viewers = [];
+    stream.history.subscribers = [];
+    stream.history.followers = [];
+    stream.history.chatMessages = [];
+    stream.history.topChatters = [];
+    stream.roomMembers.clear();
+    stream.chatMessages = [];
+    stream.bannedUsers.clear();
+
     const sid = stream.metadata.streamerId;
     const streamer = this.streamers.get(sid);
     if (streamer) {
@@ -200,6 +210,7 @@ export class SocketState {
     }
     // Usuwanie streamu z mapy, aby nie był brany pod uwagę przy emisji statystyk
     this.streams.delete(streamId);
+    console.log(`[endStream] Stream ${streamId} removed from state.`);
   }
 
   static patchStream(
