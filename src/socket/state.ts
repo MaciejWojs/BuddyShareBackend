@@ -198,6 +198,8 @@ export class SocketState {
       streamer.activeStreamId = null;
       this.streamerToStreamMap.delete(sid);
     }
+    // Usuwanie streamu z mapy, aby nie był brany pod uwagę przy emisji statystyk
+    this.streams.delete(streamId);
   }
 
   static patchStream(
