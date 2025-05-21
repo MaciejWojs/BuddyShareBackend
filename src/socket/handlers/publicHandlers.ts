@@ -1,15 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { SocketState, ChatMessage, BanOptions } from '../state';
 
-enum ChatAction {
-  // EDIT = 'edit',
-  DELETE = 'delete',
-  TIMEOUT = 'timeout',
-  UNTIMEOUT = 'untimeout',
-  UNBAN = 'unban',
-  BAN = 'ban',
-}
-
 export const handlePublicEvents = (socket: Socket, io: Server) => {
 
   // dołączanie do pokoju czatowego
@@ -125,47 +116,4 @@ export const handlePublicEvents = (socket: Socket, io: Server) => {
     console.log(`Chat history for stream ${streamId}:`, chatMessages);
     socket.emit("allMessages", chatMessages);
   });
-
-  socket.on('manageChat', async (message: ChatMessage, action: ChatAction, options?: BanOptions) => {
-    //! TODO: przenieść do authHandlers dla bezpieczeństwa (teraz tylko na frontendzie jest sprawdzane)
-    console.log("manageChat", message, action);
-    if (!message.streamId) {
-      console.error("Invalid streamId:", message.streamId);
-      return;
-    }
-    const stream = SocketState.getStreamInfo(String(message.streamId));
-    if (!stream) {
-      console.error("Stream not found:", message.streamId);
-      return;
-    }
-    if (!stream.metadata.isPublic) {
-      console.error("Stream is not public:", message.streamId);
-      return;
-    }
-    const room = `chat:${message.streamId}`;
-
-    switch (action) {
-      case ChatAction.DELETE:
-        const updatedMessage = await SocketState.deleteChatMessage(message);
-        io.of('/public').to(room).emit("patchChatMessage", updatedMessage);
-        console.log(`Deleted message ${message.chatMessageId} from stream ${message.streamId}`);
-        break;
-      // case ChatAction.TIMEOUT:
-      //   SocketState.timeoutUser(message.userId, message.streamId);
-      //   break;
-      // case ChatAction.UNTIMEOUT:
-      //   SocketState.untimeoutUser(message.userId, message.streamId);
-      //   break;
-      case ChatAction.BAN:
-        SocketState.banUser(message.userId, message.streamId, options);
-        break;
-      // case ChatAction.UNBAN:
-      //   SocketState.unbanUser(message.userId, message.streamId);
-      //   break;
-      default:
-        console.error("Invalid action:", action);
-        return;
-    }
-    // socket.to(room).emit("manageChat", data);
-  })
 };

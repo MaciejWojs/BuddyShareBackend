@@ -236,6 +236,7 @@ model BannedUsersPerStreamer {
   streamer Streamers @relation(fields: [streamerId], references: [streamerId])
   user     Users     @relation(fields: [userId], references: [userId])
 
+  @@unique([streamerId, userId])
   @@map("banned_users_per_streamer")
 }
 
