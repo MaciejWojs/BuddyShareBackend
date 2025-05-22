@@ -35,7 +35,7 @@ router.use('/:username/settings', authenticate, checkUserResourceOwnership, user
 // router.patch('/:username/settings', authenticate,  UserController.updateUserSettings)
 router.get('/:username/profile', UserController.getUserProfile)
 
-router.get('/:username/subscriptions',authenticate,checkUserResourceOwnership,   UserController.getUserSubscriptions)
+router.get('/:username/subscriptions', authenticate, checkUserResourceOwnership, UserController.getUserSubscriptions)
 
 // router.get('/:username/followers',  UserController.getUserFollowers)
 // router.get('/:username/following',  UserController.getUserFollowing)
