@@ -181,3 +181,4 @@ swagger-pl.json
 swagger-en.json
 .vscode
 *.pgsql
+media/
