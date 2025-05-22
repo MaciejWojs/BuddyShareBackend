@@ -442,6 +442,44 @@ export const getUserProfile = async (req: Request, res: Response) => {
         ...profile
     });
 }
+export const patchUserProfile = async (req: Request, res: Response) => {
+    console.log("Updating user profile for user ID:", req.userInfo.user.userId);
+
+    const { description, profilePicture, profileBanner } = req.body;
+
+    if (!description && !profilePicture && !profileBanner) {
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'No data provided to update'
+        });
+        return;
+    }
+
+    try {
+        const updatedUser = await prisma.usersInfo.update({
+            where: {
+                userInfoId: req.userInfo.user.userId
+            },
+            data: {
+                ...(description && { description }),
+                ...(profilePicture && { profilePicture }),
+                ...(profileBanner && { profileBanner })
+            }
+        });
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: 'User profile updated successfully',
+            user: updatedUser
+        });
+    } catch (error: any) {
+        console.error(`Error updating user profile: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: 'Error updating user profile'
+        });
+    }
+}
 
 export const getUserFollowers = async (req: Request, res: Response) => {
     console.log("REQ.USERINFO: ", req.userInfo.user.userId);
@@ -475,6 +513,7 @@ export const getUserFollowers = async (req: Request, res: Response) => {
         });
     }
 }
+
 
 export const getUserFollowing = async (req: Request, res: Response) => {
 

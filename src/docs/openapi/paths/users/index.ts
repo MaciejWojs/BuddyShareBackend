@@ -547,7 +547,23 @@ export const usersPathsEN = {
         required: true,
         content: {
           'application/json': {
-            schema: { $ref: '#/components/schemas/UpdateUserProfileRequest' }
+            schema: {
+              type: 'object',
+              properties: {
+                description: {
+                  type: 'string',
+                  description: 'User description'
+                },
+                profilePicture: {
+                  type: 'string',
+                  description: 'URL to profile picture'
+                },
+                profileBanner: {
+                  type: 'string',
+                  description: 'URL to profile banner'
+                }
+              }
+            }
           }
         }
       },
@@ -565,7 +581,11 @@ export const usersPathsEN = {
                   },
                   message: {
                     type: 'string',
-                    example: 'Profile updated successfully'
+                    example: 'User profile updated successfully'
+                  },
+                  user: {
+                    type: 'object',
+                    description: 'Updated user profile data'
                   }
                 }
               }
@@ -573,7 +593,7 @@ export const usersPathsEN = {
           }
         },
         '400': {
-          description: 'Bad request - invalid data',
+          description: 'Bad request - no data provided to update',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -1123,22 +1143,26 @@ export const usersPathsEN = {
                 items: {
                   type: 'object',
                   properties: {
-                    id: {
+                    subscriberId: {
                       type: 'integer',
                       description: 'Subscription ID'
                     },
-                    user_id: {
+                    userId: {
                       type: 'integer',
                       description: 'User ID that owns the subscription'
                     },
-                    streamer_id: {
+                    streamerId: {
                       type: 'integer',
                       description: 'Streamer ID being subscribed to'
                     },
-                    createdAt: {
+                    streamerUsername: {
                       type: 'string',
-                      format: 'date-time',
-                      description: 'When the subscription was created'
+                      description: 'Username of the streamer'
+                    },
+                    profilePicture: {
+                      type: 'string',
+                      nullable: true,
+                      description: 'Profile picture of the streamer'
                     }
                   }
                 }
@@ -1729,7 +1753,23 @@ export const usersPathsPL = {
         required: true,
         content: {
           'application/json': {
-            schema: { $ref: '#/components/schemas/UpdateUserProfileRequest' }
+            schema: {
+              type: 'object',
+              properties: {
+                description: {
+                  type: 'string',
+                  description: 'Opis/biografia użytkownika'
+                },
+                profilePicture: {
+                  type: 'string',
+                  description: 'URL do zdjęcia profilowego'
+                },
+                profileBanner: {
+                  type: 'string',
+                  description: 'URL do banera profilu'
+                }
+              }
+            }
           }
         }
       },
@@ -1747,7 +1787,11 @@ export const usersPathsPL = {
                   },
                   message: {
                     type: 'string',
-                    example: 'Profil zaktualizowany pomyślnie'
+                    example: 'Profil użytkownika zaktualizowany pomyślnie'
+                  },
+                  user: {
+                    type: 'object',
+                    description: 'Zaktualizowane dane profilu użytkownika'
                   }
                 }
               }
@@ -1755,7 +1799,7 @@ export const usersPathsPL = {
           }
         },
         '400': {
-          description: 'Nieprawidłowe żądanie - nieprawidłowe dane',
+          description: 'Nieprawidłowe żądanie - nie podano danych do aktualizacji',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -1939,152 +1983,6 @@ export const usersPathsPL = {
         },
         '403': {
           description: 'Zabroniony - nie można modyfikować ustawień innego użytkownika',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '404': {
-          description: 'Nie znaleziono użytkownika',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '500': {
-          description: 'Wewnętrzny błąd serwera',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        }
-      }
-    }
-  },
-  '/users/{username}/follow': {
-    post: {
-      tags: ['Użytkownicy'],
-      summary: 'Obserwuj użytkownika',
-      description: 'Rozpoczyna obserwowanie innego użytkownika',
-      security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: 'username',
-          in: 'path',
-          required: true,
-          description: 'Nazwa użytkownika do obserwowania',
-          schema: {
-            type: 'string'
-          }
-        }
-      ],
-      responses: {
-        '200': {
-          description: 'Użytkownik obserwowany pomyślnie',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  success: {
-                    type: 'boolean',
-                    example: true
-                  },
-                  message: {
-                    type: 'string',
-                    example: 'Użytkownik obserwowany pomyślnie'
-                  }
-                }
-              }
-            }
-          }
-        },
-        '400': {
-          description: 'Nieprawidłowe żądanie - już obserwujesz lub nie można obserwować samego siebie',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '401': {
-          description: 'Nieautoryzowany - brak uwierzytelnienia',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '404': {
-          description: 'Nie znaleziono użytkownika',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '500': {
-          description: 'Wewnętrzny błąd serwera',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        }
-      }
-    }
-  },
-  '/users/{username}/unfollow': {
-    post: {
-      tags: ['Użytkownicy'],
-      summary: 'Przestań obserwować użytkownika',
-      description: 'Przestaje obserwować wcześniej obserwowanego użytkownika',
-      security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: 'username',
-          in: 'path',
-          required: true,
-          description: 'Nazwa użytkownika do zaprzestania obserwacji',
-          schema: {
-            type: 'string'
-          }
-        }
-      ],
-      responses: {
-        '200': {
-          description: 'Zaprzestano obserwacji użytkownika pomyślnie',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  success: {
-                    type: 'boolean',
-                    example: true
-                  },
-                  message: {
-                    type: 'string',
-                    example: 'Zaprzestano obserwacji użytkownika pomyślnie'
-                  }
-                }
-              }
-            }
-          }
-        },
-        '400': {
-          description: 'Nieprawidłowe żądanie - nie obserwujesz lub nie można zaprzestać obserwacji samego siebie',
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
-            }
-          }
-        },
-        '401': {
-          description: 'Nieautoryzowany - brak uwierzytelnienia',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
@@ -2451,22 +2349,26 @@ export const usersPathsPL = {
                 items: {
                   type: 'object',
                   properties: {
-                    id: {
+                    subscriberId: {
                       type: 'integer',
                       description: 'ID subskrypcji'
                     },
-                    user_id: {
+                    userId: {
                       type: 'integer',
                       description: 'ID użytkownika posiadającego subskrypcję'
                     },
-                    streamer_id: {
+                    streamerId: {
                       type: 'integer',
                       description: 'ID streamera, który jest subskrybowany'
                     },
-                    createdAt: {
+                    streamerUsername: {
                       type: 'string',
-                      format: 'date-time',
-                      description: 'Kiedy subskrypcja została utworzona'
+                      description: 'Nazwa użytkownika streamera'
+                    },
+                    profilePicture: {
+                      type: 'string',
+                      nullable: true,
+                      description: 'Zdjęcie profilowe streamera'
                     }
                   }
                 }
