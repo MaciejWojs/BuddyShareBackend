@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
-import { sql } from 'bun';
-import Stream from 'stream';
+import { Glob, sql } from 'bun';
 import { SocketState } from '../socket/state';
 import { FileRequest } from '../middleware/mediaMiddlewares';
+import * as path from 'path';
 
 // Rozszerzenie interfejsu Request o pole userInfo
 declare global {
@@ -1018,4 +1018,55 @@ export const getUserSubscriptions = async (req: Request, res: Response) => {
             message: `${ReasonPhrases.INTERNAL_SERVER_ERROR}`
         });
     }
+}
+
+export const getUserAvatar = async (req: Request, res: Response) => {
+    console.log("Getting avatar for user ID:", req.userInfo.user.userId);
+
+    try {
+        const result = await sql`
+            SELECT profile_picture FROM users_info 
+            WHERE id = ${req.userInfo.user.userId}
+        `;
+
+        if (!result || result.length === 0 || !result[0].profile_picture) {
+            res.status(StatusCodes.NOT_FOUND).json({
+                success: false,
+                message: 'Avatar not found'
+            });
+            return;
+        }
+
+        const glob = new Glob("media/" + result[0].profile_picture + "/avatar.*");
+        let avatarFile = null;
+        for await (const file of glob.scan()) {
+            avatarFile = Bun.file(file);
+            console.log("Avatar file search: ", file);
+        }
+
+        if (!avatarFile) {
+            res.status(StatusCodes.NOT_FOUND).json({
+                success: false,
+                message: 'Avatar file not found'
+            });
+            return;
+        }
+
+        const ext = path.extname(avatarFile.name!).toLowerCase();
+        let mime = 'application/octet-stream';
+        if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
+        if (ext === '.png') mime = 'image/png';
+        if (ext === '.webp') mime = 'image/webp';
+
+        res.setHeader('Content-Type', mime);
+        const arrayBuffer = await avatarFile.arrayBuffer();
+        res.send(Buffer.from(arrayBuffer));
+    } catch (error) {
+        console.error('Error retrieving avatar:', error);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: 'Error retrieving avatar'
+        });
+    }
+
 }

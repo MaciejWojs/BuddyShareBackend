@@ -17,6 +17,7 @@ router.get('/brief', authenticate, isAdmin, UserController.getAllUsers)
 router.use('/:username', userExistsMiddleware)
 
 router.get('/:username', UserController.exists)
+router.get('/:username/avatar', UserController.getUserAvatar)
 router.patch('/:username/ban', authenticate, isAdmin, UserController.banUser)
 router.patch('/:username/unban', authenticate, isAdmin, UserController.unbanUser)
 router.patch('/:username/role', authenticate, isAdmin, UserController.changeUsersRole)
