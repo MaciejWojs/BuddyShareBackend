@@ -53,10 +53,10 @@ services:
           path: ./bun.lock
         - action: rebuild
           path: ./prisma/
-        - action: sync
+        - action: rebuild
           path: ./src/
           target: /app/src/
-        - action: sync
+        - action: sync+restart
           path: ./public/
           target: /app/public/
           ignore:

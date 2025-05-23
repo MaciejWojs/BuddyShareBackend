@@ -4,6 +4,7 @@ import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { sql } from 'bun';
 import Stream from 'stream';
 import { SocketState } from '../socket/state';
+import { FileRequest } from '../middleware/mediaMiddlewares';
 
 // Rozszerzenie interfejsu Request o pole userInfo
 declare global {
@@ -442,17 +443,26 @@ export const getUserProfile = async (req: Request, res: Response) => {
         ...profile
     });
 }
+
 export const patchUserProfile = async (req: Request, res: Response) => {
     console.log("Updating user profile for user ID:", req.userInfo.user.userId);
 
     const { description, profilePicture, profileBanner } = req.body;
+    const file = req.file as Express.Multer.File;
+    const hash = (req as FileRequest).hash as string;
 
-    if (!description && !profilePicture && !profileBanner) {
+    if (!description && !profilePicture && !profileBanner && !file && !hash) {
         res.status(StatusCodes.BAD_REQUEST).json({
             success: false,
             message: 'No data provided to update'
         });
         return;
+    }
+
+    if (file && hash) {
+        console.log("File and hash provided, updating profile picture", hash);
+        const userProfie = await sql`update users_info set profile_picture = ${hash} where id = ${req.userInfo.user.userId} RETURNING *`;
+        console.log("User profile updated: ", userProfie);
     }
 
     try {
@@ -712,7 +722,7 @@ export const unfollowUser = async (req: Request, res: Response) => {
         });
         console.log(`User with id: ${followerUserId} unfollowed user with id: ${followedUserId} successfully`);
 
-        
+
         if (!req.streamer) return;
 
         if (!(req.streamer.userId === followedUserId)) {

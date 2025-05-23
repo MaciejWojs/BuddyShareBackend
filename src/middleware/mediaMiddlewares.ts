@@ -10,9 +10,22 @@ import sharp from 'sharp';
 
 const prisma = new PrismaClient();
 
+export enum ImageTypes {
+    SOURCE = 'source',
+    AVATAR = 'avatar',
+    BANNER = 'banner',
+    THUMBNAIL = 'thumbnail',
+    COVER = 'cover',
+}
+
+export interface FileRequest extends Request {
+    hash: string;
+}
+
 const storage = multer.diskStorage({
-    destination: function (_req, _file, cb) {
+    destination: function (_req: Request, _file, cb) {
         const directory: string = require('crypto').randomBytes(8).toString('hex');
+        (_req as FileRequest).hash = directory;
         const fullPath = path.join('media', directory);
         fs.mkdirSync(fullPath, { recursive: true });
         cb(null, fullPath);
@@ -54,16 +67,25 @@ export const uploadMiddleware = (req: Request, res: Response, next: NextFunction
     });
 };
 
-export const createOtherTypesOfMedia = async (req: Request, res: Response) => {
-    const { dir } = req.query;
-    
-}
+export const uploadMiddlewareOptional = (req: Request, res: Response, next: NextFunction) => {
+    upload.single('file')(req, res, function (err) {
+        if (err) {
+            // res.sendStatus(StatusCodes.BAD_REQUEST);
+            console.error(err.message);
+            return
+        }
+        next();
+    });
+};
+
 
 export const generateSocialMediaImages = async (req: Request, res: Response, next: NextFunction) => {
     try {
         if (!req.file || !req.file.path) {
-            res.status(StatusCodes.BAD_REQUEST).json({ error: 'Brak pliku do przetworzenia' });
-            return 
+            // res.status(StatusCodes.BAD_REQUEST).json({ error: 'Brak pliku do przetworzenia' });
+            console.error(`GenSocialMediaImages: Brak pliku do przetworzenia podczas ${req.method} ${req.originalUrl}`);
+            next();
+            return
         }
 
         const inputPath = req.file.path;
@@ -74,17 +96,22 @@ export const generateSocialMediaImages = async (req: Request, res: Response, nex
             // Miniaturka (np. 320x180)
             sharp(inputPath)
                 .resize(320, 180)
-                .toFile(path.join(dir, `thumbnail${ext}`)),
+                .toFile(path.join(dir, `${ImageTypes.THUMBNAIL}${ext}`)),
 
             // Avatar (np. 128x128, crop)
             sharp(inputPath)
                 .resize(128, 128)
-                .toFile(path.join(dir, `avatar${ext}`)),
+                .toFile(path.join(dir, `${ImageTypes.AVATAR}${ext}`)),
 
             // Okładka (np. 640x360)
             sharp(inputPath)
                 .resize(640, 360)
-                .toFile(path.join(dir, `cover${ext}`)),
+                .toFile(path.join(dir, `${ImageTypes.COVER}${ext}`)),
+
+            // Banner (np. 1920x480)
+            sharp(inputPath)
+                .resize(1920, 480)
+                .toFile(path.join(dir, `${ImageTypes.BANNER}${ext}`)),
         ]);
 
         next();

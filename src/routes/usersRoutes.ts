@@ -7,6 +7,7 @@ import followerRoutes from './subroutes/followerRoutes';
 import userSettingsRoutes from './subroutes/userSettingsRoutes';
 import { notifactionExist } from '../middleware/notifactionExist';
 import { attachStreamerIfExists } from '../middleware/isStreamer';
+import { generateSocialMediaImages, uploadMiddleware } from '../middleware/mediaMiddlewares';
 
 const router = Router();
 
@@ -34,7 +35,7 @@ router.use('/:username/settings', authenticate, checkUserResourceOwnership, user
 // router.patch('/:username/settings/:id', authenticate,  UserController.updateUserSetting)
 // router.patch('/:username/settings', authenticate,  UserController.updateUserSettings)
 router.get('/:username/profile', UserController.getUserProfile)
-router.patch('/:username/profile', authenticate, checkUserResourceOwnership, UserController.patchUserProfile)
+router.patch('/:username/profile', authenticate, checkUserResourceOwnership, uploadMiddleware, generateSocialMediaImages, UserController.patchUserProfile)
 
 router.get('/:username/subscriptions', authenticate, checkUserResourceOwnership, UserController.getUserSubscriptions)
 

@@ -4,6 +4,7 @@ import * as EmailValidator from 'email-validator';
 import jwt from 'jsonwebtoken';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { getPasswordHash } from '../utils/hash';
+import { ImageTypes } from '../middleware/mediaMiddlewares';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -15,22 +16,23 @@ export const postImage = async (req: Request, res: Response) => {
 }
 
 export const getImage = async (req: Request, res: Response) => {
-    const { dir, type } = req.query;
+    const hash = req.params?.hash || req.query?.hash;
+    const type = req.params?.type || req.query?.type;
 
-    if (typeof dir !== 'string' || typeof type !== 'string') {
+    if (typeof hash !== 'string' || typeof type !== 'string' || !hash || !type) {
         res.status(StatusCodes.BAD_REQUEST).json({ error: 'Brak parametrów' });
         return;
     }
 
-    const folderPath = path.join('media', dir);
+    const folderPath = path.join('media', hash);
     if (!fs.existsSync(folderPath) || !fs.lstatSync(folderPath).isDirectory()) {
         res.status(StatusCodes.NOT_FOUND).json({ error: 'Folder nie istnieje' });
         return;
     }
 
     // Obsługiwane typy
-    const allowedTypes = ['source','avatar', 'banner', 'offline', 'emote', 'subbadge_s', 'subbadge_m', 'subbadge_l', 'thumbnail', 'overlay', 'alert', 'webcam'];
-    if (!allowedTypes.includes(type)) {
+    const allowedTypes = Object.values(ImageTypes);
+    if (!allowedTypes.includes(type as ImageTypes)) {
         res.status(StatusCodes.BAD_REQUEST).json({ error: 'Nieprawidłowy typ obrazu' });
         return;
     }

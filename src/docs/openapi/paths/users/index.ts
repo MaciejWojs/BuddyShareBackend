@@ -1204,6 +1204,402 @@ export const usersPathsEN = {
         }
       }
     }
+  },
+  '/users/{username}/notifications': {
+    get: {
+      tags: ['Users'],
+      summary: 'Get user notifications',
+      description: 'Returns all notifications for the authenticated user',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the user',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'List of notifications',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/Notification' }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'User not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/notifications/{id}': {
+    patch: {
+      tags: ['Users'],
+      summary: 'Update user notification',
+      description: 'Updates a single notification (mark as read/unread)',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the user',
+          schema: {
+            type: 'string'
+          }
+        },
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'Notification ID',
+          schema: {
+            type: 'integer'
+          }
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['isRead'],
+              properties: {
+                isRead: {
+                  type: 'boolean',
+                  description: 'Mark notification as read/unread'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        '200': {
+          description: 'Notification updated successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Notification with ID: 1 updated successfully' }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Bad request - invalid data',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Notification not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      tags: ['Users'],
+      summary: 'Delete user notification',
+      description: 'Deletes a single notification',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the user',
+          schema: {
+            type: 'string'
+          }
+        },
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'Notification ID',
+          schema: {
+            type: 'integer'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Notification deleted successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Notification with ID: 1 deleted successfully' }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Notification not found',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/notifications/bulk': {
+    patch: {
+      tags: ['Users'],
+      summary: 'Bulk update notifications',
+      description: 'Updates multiple notifications for the authenticated user',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the user',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['notifications'],
+              properties: {
+                notifications: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['id', 'isRead'],
+                    properties: {
+                      id: { type: 'integer' },
+                      isRead: { type: 'boolean' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        '200': {
+          description: 'Notifications updated successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Successfully updated 3 notifications' },
+                  updatedIds: {
+                    type: 'array',
+                    items: { type: 'integer' }
+                  }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Bad request - invalid data',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'No matching notifications found for this user',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      tags: ['Users'],
+      summary: 'Bulk delete notifications',
+      description: 'Deletes multiple notifications for the authenticated user',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Username of the user',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['notifications'],
+              properties: {
+                notifications: {
+                  type: 'array',
+                  items: { type: 'integer' }
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        '200': {
+          description: 'Notifications deleted successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Pomyślnie usunięto 3 powiadomień' },
+                  deletedIds: {
+                    type: 'array',
+                    items: { type: 'integer' }
+                  }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Bad request - invalid data',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Unauthorized - not authenticated',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'No matching notifications found for this user',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
   }
 };
 
@@ -2394,6 +2790,402 @@ export const usersPathsPL = {
         },
         '404': {
           description: 'Nie znaleziono użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/notifications': {
+    get: {
+      tags: ['Użytkownicy'],
+      summary: 'Pobierz powiadomienia użytkownika',
+      description: 'Zwraca wszystkie powiadomienia dla uwierzytelnionego użytkownika',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Lista powiadomień',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/Notification' }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/notifications/{id}': {
+    patch: {
+      tags: ['Użytkownicy'],
+      summary: 'Zaktualizuj powiadomienie użytkownika',
+      description: 'Aktualizuje pojedyncze powiadomienie (oznacz jako przeczytane/nieprzeczytane)',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika',
+          schema: {
+            type: 'string'
+          }
+        },
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'ID powiadomienia',
+          schema: {
+            type: 'integer'
+          }
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['isRead'],
+              properties: {
+                isRead: {
+                  type: 'boolean',
+                  description: 'Oznacz powiadomienie jako przeczytane/nieprzeczytane'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        '200': {
+          description: 'Powiadomienie zaktualizowane pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Powiadomienie z ID: 1 zaktualizowane pomyślnie' }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Nieprawidłowe żądanie - nieprawidłowe dane',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono powiadomienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      tags: ['Użytkownicy'],
+      summary: 'Usuń powiadomienie użytkownika',
+      description: 'Usuwa pojedyncze powiadomienie',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika',
+          schema: {
+            type: 'string'
+          }
+        },
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'ID powiadomienia',
+          schema: {
+            type: 'integer'
+          }
+        }
+      ],
+      responses: {
+        '200': {
+          description: 'Powiadomienie usunięte pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Powiadomienie z ID: 1 usunięte pomyślnie' }
+                }
+              }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono powiadomienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/users/{username}/notifications/bulk': {
+    patch: {
+      tags: ['Użytkownicy'],
+      summary: 'Masowa aktualizacja powiadomień',
+      description: 'Aktualizuje wiele powiadomień dla uwierzytelnionego użytkownika',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['notifications'],
+              properties: {
+                notifications: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['id', 'isRead'],
+                    properties: {
+                      id: { type: 'integer' },
+                      isRead: { type: 'boolean' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        '200': {
+          description: 'Powiadomienia zaktualizowane pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Pomyślnie zaktualizowano 3 powiadomienia' },
+                  updatedIds: {
+                    type: 'array',
+                    items: { type: 'integer' }
+                  }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Nieprawidłowe żądanie - nieprawidłowe dane',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono pasujących powiadomień dla tego użytkownika',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      tags: ['Użytkownicy'],
+      summary: 'Masowe usuwanie powiadomień',
+      description: 'Usuwa wiele powiadomień dla uwierzytelnionego użytkownika',
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: 'username',
+          in: 'path',
+          required: true,
+          description: 'Nazwa użytkownika',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['notifications'],
+              properties: {
+                notifications: {
+                  type: 'array',
+                  items: { type: 'integer' }
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        '200': {
+          description: 'Powiadomienia usunięte pomyślnie',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  message: { type: 'string', example: 'Pomyślnie usunięto 3 powiadomień' },
+                  deletedIds: {
+                    type: 'array',
+                    items: { type: 'integer' }
+                  }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: 'Nieprawidłowe żądanie - nieprawidłowe dane',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '401': {
+          description: 'Nieautoryzowany - brak uwierzytelnienia',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        },
+        '404': {
+          description: 'Nie znaleziono pasujących powiadomień dla tego użytkownika',
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/Error' }
