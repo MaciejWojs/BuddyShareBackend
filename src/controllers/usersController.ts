@@ -447,11 +447,11 @@ export const getUserProfile = async (req: Request, res: Response) => {
 export const patchUserProfile = async (req: Request, res: Response) => {
     console.log("Updating user profile for user ID:", req.userInfo.user.userId);
 
-    const { description, profilePicture, profileBanner } = req.body;
-    const file = req.file as Express.Multer.File;
-    const hash = (req as FileRequest).hash as string;
+    const { description } = req.body;
+    const files = req.files as Express.Multer.File[] | undefined;
+    const fileHashes = (req as FileRequest).fileHashes;
 
-    if (!description && !profilePicture && !profileBanner && !file && !hash) {
+    if (!description && (!files || files.length === 0)) {
         res.status(StatusCodes.BAD_REQUEST).json({
             success: false,
             message: 'No data provided to update'
@@ -459,22 +459,28 @@ export const patchUserProfile = async (req: Request, res: Response) => {
         return;
     }
 
-    if (file && hash) {
-        console.log("File and hash provided, updating profile picture", hash);
-        const userProfie = await sql`update users_info set profile_picture = ${hash} where id = ${req.userInfo.user.userId} RETURNING *`;
-        console.log("User profile updated: ", userProfie);
+    // Przypisz profilePicture i profileBanner na podstawie kolejności plików i hashy
+    let updateData: any = {};
+    if (files && fileHashes && files.length === fileHashes.length) {
+        files.forEach((file, idx) => {
+            // Rozpoznaj po nazwie oryginalnej pliku
+            if (file.originalname.toLowerCase().includes('banner')) {
+                updateData.profileBanner = fileHashes[idx];
+            } else if (file.originalname.toLowerCase().includes('avatar') || file.originalname.toLowerCase().includes('profile')) {
+                updateData.profilePicture = fileHashes[idx];
+            }
+        });
     }
+
+    // Nadpisz, jeśli podano jawnie w body
+    if (description) updateData.description = description;
 
     try {
         const updatedUser = await prisma.usersInfo.update({
             where: {
                 userInfoId: req.userInfo.user.userId
             },
-            data: {
-                ...(description && { description }),
-                ...(profilePicture && { profilePicture }),
-                ...(profileBanner && { profileBanner })
-            }
+            data: updateData
         });
 
         res.status(StatusCodes.OK).json({

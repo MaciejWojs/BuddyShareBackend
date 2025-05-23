@@ -7,6 +7,6 @@ const router = Router();
 
 router.get('/', mediaController.getImage);
 
-router.post('/', uploadMiddleware, generateSocialMediaImages, mediaController.postImage)
+// router.post('/', uploadMiddleware, generateSocialMediaImages, mediaController.postImage)
 
 export default router;
