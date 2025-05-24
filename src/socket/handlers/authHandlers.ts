@@ -1,6 +1,16 @@
 import { Server, Socket } from 'socket.io';
-import { SocketState, ChatMessage } from '../state';
+import { SocketState, ChatMessage, BanOptions } from '../state';
 import { sql } from 'bun';
+
+enum ChatAction {
+  // EDIT = 'edit',
+  DELETE = 'delete',
+  TIMEOUT = 'timeout',
+  UNTIMEOUT = 'untimeout',
+  UNBAN = 'unban',
+  BAN = 'ban',
+}
+
 
 export const handleAuthEvents = (socket: Socket, io: Server) => {
   const publicNsp = io.of("/public");
@@ -41,7 +51,7 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
     try {
       const success = await SocketState.addChatMessage(streamIdNum, userId, data.message);
       if (!success) {
-        socket.emit("chatMessageError", "You are not allowed to send messages in this stream.");
+        socket.emit("chatMessageError", { message: "You are not allowed to send messages on this streamer's chat." });
         console.error("User is not allowed to send messages in this stream:", userId);
         return;
       }
@@ -75,6 +85,56 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
     console.log(`Message for ${room}:`, chatMessage);
     publicNsp.to(room).emit("chatMessage", chatMessage);
   });
+
+  socket.on('manageChat', async (message: ChatMessage, action: ChatAction, options?: BanOptions) => {
+    //! TODO: przenieść do authHandlers dla bezpieczeństwa (teraz tylko na frontendzie jest sprawdzane)
+    console.log("manageChat", message, action);
+    if (!message.streamId) {
+      console.error("Invalid streamId:", message.streamId);
+      return;
+    }
+    const stream = SocketState.getStreamInfo(String(message.streamId));
+    if (!stream) {
+      console.error("Stream not found:", message.streamId);
+      return;
+    }
+    if (!stream.metadata.isPublic) {
+      console.error("Stream is not public:", message.streamId);
+      return;
+    }
+    const room = `chat:${message.streamId}`;
+
+    switch (action) {
+      case ChatAction.DELETE:
+        const updatedMessage = await SocketState.deleteChatMessage(message);
+        io.of('/public').to(room).emit("patchChatMessage", updatedMessage);
+        console.log(`Deleted message ${message.chatMessageId} from stream ${message.streamId}`);
+        break;
+      // case ChatAction.TIMEOUT:
+      //   SocketState.timeoutUser(message.userId, message.streamId);
+      //   break;
+      // case ChatAction.UNTIMEOUT:
+      //   SocketState.untimeoutUser(message.userId, message.streamId);
+      //   break;
+      case ChatAction.BAN:
+        const success = await SocketState.banUser(message.userId, message.streamId, options);
+        socket.emit("banUserStatus", {
+          message:
+            success
+              ? `User ${message.userId} has been banned successfully.`
+              : `Failed to ban user ${message.userId}.`
+          , success: success
+        });
+        break;
+      // case ChatAction.UNBAN:
+      //   SocketState.unbanUser(message.userId, message.streamId);
+      //   break;
+      default:
+        console.error("Invalid action:", action);
+        return;
+    }
+    // socket.to(room).emit("manageChat", data);
+  })
 
   // Obsługa błędów połączenia
   socket.on('connectionError', (error: string) => {

@@ -7,6 +7,7 @@ import followerRoutes from './subroutes/followerRoutes';
 import userSettingsRoutes from './subroutes/userSettingsRoutes';
 import { notifactionExist } from '../middleware/notifactionExist';
 import { attachStreamerIfExists } from '../middleware/isStreamer';
+import { generateSocialMediaImages, generateSocialMediaImagesMultiple, uploadMiddleware, uploadMiddlewareMultiple } from '../middleware/mediaMiddlewares';
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.get('/brief', authenticate, isAdmin, UserController.getAllUsers)
 router.use('/:username', userExistsMiddleware)
 
 router.get('/:username', UserController.exists)
+router.get('/:username/avatar', UserController.getUserAvatar)
 router.patch('/:username/ban', authenticate, isAdmin, UserController.banUser)
 router.patch('/:username/unban', authenticate, isAdmin, UserController.unbanUser)
 router.patch('/:username/role', authenticate, isAdmin, UserController.changeUsersRole)
@@ -34,8 +36,9 @@ router.use('/:username/settings', authenticate, checkUserResourceOwnership, user
 // router.patch('/:username/settings/:id', authenticate,  UserController.updateUserSetting)
 // router.patch('/:username/settings', authenticate,  UserController.updateUserSettings)
 router.get('/:username/profile', UserController.getUserProfile)
+router.patch('/:username/profile', authenticate, checkUserResourceOwnership, uploadMiddlewareMultiple, generateSocialMediaImagesMultiple, UserController.patchUserProfile)
 
-router.get('/:username/subscriptions',authenticate,checkUserResourceOwnership,   UserController.getUserSubscriptions)
+router.get('/:username/subscriptions', authenticate, checkUserResourceOwnership, UserController.getUserSubscriptions)
 
 // router.get('/:username/followers',  UserController.getUserFollowers)
 // router.get('/:username/following',  UserController.getUserFollowing)

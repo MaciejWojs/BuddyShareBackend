@@ -41,6 +41,7 @@ export interface ChatMessage {
   username: string;
   avatar: string | null;
   type?: "user" | "system";
+  originalMessage?: string; // NOWE
 }
 
 export type BanOptions = {
@@ -191,12 +192,25 @@ export class SocketState {
     if (!stream) return;
     stream.metadata.isLive = false;
 
+    // Wyczyść historię, członków pokoju, czat i bany
+    stream.history.viewers = [];
+    stream.history.subscribers = [];
+    stream.history.followers = [];
+    stream.history.chatMessages = [];
+    stream.history.topChatters = [];
+    stream.roomMembers.clear();
+    stream.chatMessages = [];
+    stream.bannedUsers.clear();
+
     const sid = stream.metadata.streamerId;
     const streamer = this.streamers.get(sid);
     if (streamer) {
       streamer.activeStreamId = null;
       this.streamerToStreamMap.delete(sid);
     }
+    // Usuwanie streamu z mapy, aby nie był brany pod uwagę przy emisji statystyk
+    this.streams.delete(streamId);
+    console.log(`[endStream] Stream ${streamId} removed from state.`);
   }
 
   static patchStream(
@@ -501,6 +515,7 @@ export class SocketState {
     const chatMessage = stream.chatMessages.find((msg) => msg.chatMessageId === message.chatMessageId);
     const idx = stream.chatMessages.findIndex((msg) => msg.chatMessageId === message.chatMessageId);
     if (chatMessage && idx !== -1) {
+      chatMessage.originalMessage = chatMessage.message; // zapisz starą treść
       chatMessage.isDeleted = true;
       chatMessage.message = 'This message has been deleted';
       chatMessage.type = 'system';
@@ -517,6 +532,7 @@ export class SocketState {
   }
 
   static async banUser(userId: number, streamId: number, options?: BanOptions) {
+    let success = true;
     const reason = options?.reason || "Unknown reason";
     const bannedBy = options?.bannedBy || null;
     const bannedUntil = options?.bannedUntil || null;
@@ -525,6 +541,12 @@ export class SocketState {
     if (!streamerId) {
       console.error(`Streamer ID not found for stream ID: ${streamId}`);
       return;
+    }
+
+    // Zabezpieczenie: jeśli użytkownik już jest zbanowany w state, nie wykonuj ponownie bana
+    const stream = this.streams.get(String(streamId));
+    if (stream && stream.bannedUsers.has(String(userId))) {
+      return false;
     }
 
     try {
@@ -543,14 +565,15 @@ export class SocketState {
         `;
       });
       // Dodaj użytkownika do listy zbanowanych w state
-      const stream = this.streams.get(String(streamId));
       if (stream) {
         stream.bannedUsers.add(String(userId));
       }
     }
     catch (e) {
       console.error('Error banning user:', e);
+      success = false;
     }
+    return success;
   }
 
   static getStreamerId(streamId: string): string | null {

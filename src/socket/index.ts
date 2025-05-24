@@ -270,7 +270,7 @@ export const notifyStreamer = (streamId: string | number, streamerUserId: string
  * Broadcast zakończenia transmisji - wywoływany z kontrolera HTTP
  */
 export const broadcastStreamEnd = (streamData: {
-  streamId: string | number;
+  streamId: number;
   streamerId: string | number;
   streamerName: string;
 }) => {
@@ -280,24 +280,24 @@ export const broadcastStreamEnd = (streamData: {
   }
 
   try {
-    const socketStreamId = streamData.streamId.toString();
+    const socketStreamId = streamData.streamId;
+    const socketStreamerIdAsString = socketStreamId.toString();
 
     // Pobierz informacje o streamie przed usunięciem
-    const streamInfo = SocketState.getStreamInfo(socketStreamId);
+    const streamInfo = SocketState.getStreamInfo(socketStreamerIdAsString);
     const viewerCount = streamInfo?.viewers || 0;
 
     // 1. Powiadom wszystkich o zakończeniu transmisji
     io.of('/public').emit('streamEnded', {
       streamId: socketStreamId,
-      streamer: streamData.streamerId.toString(),
       streamerId: streamData.streamerId,
       streamerName: streamData.streamerName,
       finalViewerCount: viewerCount
     });
 
     // 2. Usuń informacje o streamie z pamięci
-    SocketState.endStream(socketStreamId);
-    SocketState.clearStreamHistory(socketStreamId);
+    SocketState.endStream(socketStreamerIdAsString);
+    SocketState.clearStreamHistory(socketStreamerIdAsString);
 
     console.log(`Broadcasted stream end: ${socketStreamId} by ${streamData.streamerName}`);
     return true;

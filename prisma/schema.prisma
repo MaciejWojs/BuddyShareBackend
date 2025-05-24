@@ -40,6 +40,7 @@ model UsersInfo {
   userInfoId     Int      @id @default(autoincrement()) @map("id")
   username       String   @unique
   profilePicture String   @default("") @map("profile_picture")
+  profileBanner  String   @default("") @map("profile_banner")
   description    String   @default("")
   email          String   @unique
   isBanned       Boolean  @default(false)
@@ -236,6 +237,7 @@ model BannedUsersPerStreamer {
   streamer Streamers @relation(fields: [streamerId], references: [streamerId])
   user     Users     @relation(fields: [userId], references: [userId])
 
+  @@unique([streamerId, userId])
   @@map("banned_users_per_streamer")
 }
 

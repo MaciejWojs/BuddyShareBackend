@@ -9,8 +9,12 @@ import { tokenRefresher } from './middleware/authenticate';
 
 import * as Routes from './routes';
 import { SwaggerTheme, SwaggerThemeNameEnum } from 'swagger-themes';
+import compression from 'compression';
+
 
 const app = express();
+app.use(compression())
+app.disable('x-powered-by');
 const theme = new SwaggerTheme();
 const FRONT_PORT = process.env.FRONT_PORT ? parseInt(process.env.FRONT_PORT) : 5000;
 const FRONT_HOST = process.env.FRONT_HOST;
@@ -108,7 +112,7 @@ app.get('/api-docs', (req, res) => {
 // Routery,
 app.use('/streamers', Routes.streamersRoutes);
 app.use('/auth', Routes.authRoutes);
-// app.use('/media', Routes.streamRoutes);
+app.use('/media', Routes.mediaRoutes);
 app.use('/users', Routes.userRoutes);
 app.use('/streams', Routes.streamsRoutes);
 
