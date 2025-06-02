@@ -445,6 +445,31 @@ export const getUserProfile = async (req: Request, res: Response) => {
     });
 }
 
+/**
+ * Updates the user's profile (description, avatar, banner) based on provided data and files.
+ *
+ * @async
+ * @function patchUserProfile
+ * @param {Request} req - Express request object containing userInfo, body (description), files (avatar/banner), and fileHashes
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON response with success or error information
+ *
+ * @example
+ * // PATCH /api/users/profile
+ * // Body: { description: "New description" }, files: avatar, banner
+ * // Success response:
+ * // {
+ * //   success: true,
+ * //   message: 'User profile updated successfully',
+ * //   user: { ...updated user data }
+ * // }
+ *
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'No data provided to update' | 'Error updating user profile'
+ * // }
+ */
 export const patchUserProfile = async (req: Request, res: Response) => {
     console.log("Updating user profile for user ID:", req.userInfo.user.userId);
 
@@ -498,6 +523,36 @@ export const patchUserProfile = async (req: Request, res: Response) => {
     }
 }
 
+/**
+ * Retrieves the list of followers for the authenticated user.
+ *
+ * @async
+ * @function getUserFollowers
+ * @param {Request} req - Express request object containing userInfo with user ID
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON array of followers or an error message
+ *
+ * @example
+ * // GET /api/users/followers
+ * // Success response:
+ * // [
+ * //   {
+ * //     follower: {
+ * //       userInfo: {
+ * //         username: "follower1",
+ * //         profilePicture: "hash_or_url"
+ * //       }
+ * //     }
+ * //   },
+ * //   ...
+ * // ]
+ *
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'Internal Server Error'
+ * // }
+ */
 export const getUserFollowers = async (req: Request, res: Response) => {
     console.log("REQ.USERINFO: ", req.userInfo.user.userId);
 
@@ -532,8 +587,37 @@ export const getUserFollowers = async (req: Request, res: Response) => {
 }
 
 
+/**
+ * Retrieves the list of users that the authenticated user is following.
+ *
+ * @async
+ * @function getUserFollowing
+ * @param {Request} req - Express request object containing userInfo with user ID
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON array of following users or an error message
+ *
+ * @example
+ * // GET /api/users/following
+ * // Success response:
+ * // [
+ * //   {
+ * //     followed: {
+ * //       userInfo: {
+ * //         username: "followedUser1",
+ * //         profilePicture: "hash_or_url"
+ * //       }
+ * //     }
+ * //   },
+ * //   ...
+ * // ]
+ *
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'Internal Server Error'
+ * // }
+ */
 export const getUserFollowing = async (req: Request, res: Response) => {
-
     console.log("REQ.USERINFO: ", req.userInfo.user.userId);
     try {
         const following = await prisma.followers.findMany({
@@ -565,6 +649,29 @@ export const getUserFollowing = async (req: Request, res: Response) => {
     }
 }
 
+/**
+ * Retrieves the number of followers for the authenticated user.
+ *
+ * @async
+ * @function getUserFollowersCount
+ * @param {Request} req - Express request object containing userInfo with user ID
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON object with the count of followers or an error message
+ *
+ * @example
+ * // GET /api/users/followers/count
+ * // Success response:
+ * // {
+ * //   success: true,
+ * //   count: 42
+ * // }
+ *
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'Internal Server Error'
+ * // }
+ */
 export const getUserFollowersCount = async (req: Request, res: Response) => {
     console.log("Getting followers count for user ID:", req.userInfo.user.userId);
     try {
@@ -587,6 +694,28 @@ export const getUserFollowersCount = async (req: Request, res: Response) => {
     }
 }
 
+/**
+ * Retrieves the number of users the authenticated user is following.
+ *
+ * @async
+ * @function getUserFollowingCount
+ * @param {Request} req - Express request object containing userInfo with user ID
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON object with the count of following users or an error message
+ *
+ * @example
+ * // GET /api/users/following/count
+ * // Success response:
+ * // {
+ * //   success: true,
+ * //   count: 10
+ * // }
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'Internal Server Error'
+ * // }
+ */
 export const getUserFollowingCount = async (req: Request, res: Response) => {
     console.log("Getting following count for user ID:", req.userInfo.user.userId);
     try {
@@ -609,6 +738,28 @@ export const getUserFollowingCount = async (req: Request, res: Response) => {
     }
 }
 
+/**
+ * Follows another user as the authenticated user.
+ *
+ * @async
+ * @function followUser
+ * @param {Request} req - Express request object containing userInfo and userInfoOld
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON response with success or error information
+ *
+ * @example
+ * // POST /api/users/follow/:id
+ * // Success response:
+ * // {
+ * //   success: true,
+ * //   message: 'User with id: X followed user with id: Y successfully'
+ * // }
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'You cannot follow yourself' | 'Internal Server Error'
+ * // }
+ */
 export const followUser = async (req: Request, res: Response) => {
     console.log("Attempting to follow user with ID:", req.userInfo.user.userId);
     try {
@@ -672,6 +823,28 @@ export const followUser = async (req: Request, res: Response) => {
 
 }
 
+/**
+ * Unfollows a user as the authenticated user.
+ *
+ * @async
+ * @function unfollowUser
+ * @param {Request} req - Express request object containing userInfo and userInfoOld
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON response with success or error information
+ *
+ * @example
+ * // DELETE /api/users/unfollow/:id
+ * // Success response:
+ * // {
+ * //   success: true,
+ * //   message: 'User with id: X unfollowed user with id: Y successfully'
+ * // }
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'You cannot unfollow yourself' | 'You are not following this user' | 'Internal Server Error'
+ * // }
+ */
 export const unfollowUser = async (req: Request, res: Response) => {
     console.log("Attempting to unfollow user :", req.userInfo.user.userId);
     try {
@@ -752,6 +925,24 @@ export const unfollowUser = async (req: Request, res: Response) => {
 
 }
 
+/**
+ * Retrieves notifications for the authenticated user.
+ *
+ * @async
+ * @function getUserNotifications
+ * @param {Request} req - Express request object containing userInfo with user ID
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON array of notifications or an error message
+ *
+ * @example
+ * // GET /api/users/notifications
+ * // Success response: [ ...notifications ]
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'Internal Server Error'
+ * // }
+ */
 export const getUserNotifications = async (req: Request, res: Response) => {
     console.log("Getting notifications for user ID:", req.userInfo.user.userId);
     try {
@@ -772,6 +963,29 @@ export const getUserNotifications = async (req: Request, res: Response) => {
     }
 }
 
+/**
+ * Updates a single notification for the authenticated user.
+ *
+ * @async
+ * @function updateUserNotification
+ * @param {Request} req - Express request object containing userInfo and notification ID in params
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON response with success or error information
+ *
+ * @example
+ * // PATCH /api/users/notifications/:id
+ * // Body: { isRead: true }
+ * // Success response:
+ * // {
+ * //   success: true,
+ * //   message: 'Notification with ID: X updated successfully'
+ * // }
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'Internal Server Error'
+ * // }
+ */
 export const updateUserNotification = async (req: Request, res: Response) => {
     console.log("Updating notification for user ID:", req.userInfo.user.userId);
     try {
@@ -992,6 +1206,24 @@ export const deleteUserNotificationsInBulk = async (req: Request, res: Response)
     }
 }
 
+/**
+ * Retrieves the list of subscriptions for the authenticated user.
+ *
+ * @async
+ * @function getUserSubscriptions
+ * @param {Request} req - Express request object containing userInfo with user ID
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON array of subscriptions or an error message
+ *
+ * @example
+ * // GET /api/users/subscriptions
+ * // Success response: [ ...subscriptions ]
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'Internal Server Error'
+ * // }
+ */
 export const getUserSubscriptions = async (req: Request, res: Response) => {
     console.log("Getting subscriptions for user ID:", req.userInfo.user.userId);
     try {
@@ -1021,6 +1253,24 @@ export const getUserSubscriptions = async (req: Request, res: Response) => {
     }
 }
 
+/**
+ * Retrieves the avatar image for the authenticated user.
+ *
+ * @async
+ * @function getUserAvatar
+ * @param {Request} req - Express request object containing userInfo with user ID
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns the avatar image or an error message
+ *
+ * @example
+ * // GET /api/users/avatar
+ * // Success: returns image file
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'Avatar not found' | 'Avatar file not found' | 'Error retrieving avatar'
+ * // }
+ */
 export const getUserAvatar = async (req: Request, res: Response) => {
     console.log("Getting avatar for user ID:", req.userInfo.user.userId);
 
@@ -1072,6 +1322,28 @@ export const getUserAvatar = async (req: Request, res: Response) => {
 
 }
 
+/**
+ * Allows the authenticated user to become a streamer.
+ *
+ * @async
+ * @function becomeStreamer
+ * @param {Request} req - Express request object containing userInfo
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON response with success or error information
+ *
+ * @example
+ * // POST /api/users/become-streamer
+ * // Success response:
+ * // {
+ * //   success: true,
+ * //   message: 'User X became a streamer successfully'
+ * // }
+ * // Error response:
+ * // {
+ * //   success: false,
+ * //   message: 'User is already a streamer' | 'Error becoming a streamer'
+ * // }
+ */
 export const becomeStreamer = async (req: Request, res: Response) => {
     if (req.streamer !== null) {
         console.error(`User ${req.userInfo.username} is already a streamer`);
