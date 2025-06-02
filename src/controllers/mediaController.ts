@@ -11,10 +11,40 @@ import path from 'path';
 
 const prisma = new PrismaClient();
 
+/**
+ * Handles image upload and responds with status CREATED.
+ *
+ * @async
+ * @function postImage
+ * @param {Request} req - Express request object containing uploaded image data
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns status 201 if image is accepted
+ *
+ * @example
+ * // POST /api/media/image
+ * // Success response: 201 Created
+ */
 export const postImage = async (req: Request, res: Response) => {
     res.sendStatus(StatusCodes.CREATED);
 }
 
+/**
+ * Retrieves an image file by hash and type, returning the image if found.
+ *
+ * @async
+ * @function getImage
+ * @param {Request} req - Express request object containing hash and type in params or query
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns the image file or an error message
+ *
+ * @example
+ * // GET /api/media/image?hash=abc123&type=avatar
+ * // Success: returns image file
+ * // Error response:
+ * // {
+ * //   error: 'Brak parametrów' | 'Folder nie istnieje' | 'Nieprawidłowy typ obrazu' | 'Plik nie istnieje'
+ * // }
+ */
 export const getImage = async (req: Request, res: Response) => {
     const hash = req.params?.hash || req.query?.hash;
     const type = req.params?.type || req.query?.type;
