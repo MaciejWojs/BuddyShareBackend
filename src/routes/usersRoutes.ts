@@ -49,5 +49,6 @@ router.use('/:username/followers', followerRoutes)
 router.use('/:username/following', followingRoutes)
 
 
+router.post('/:username/become-streamer', authenticate, checkUserResourceOwnership, attachStreamerIfExists, UserController.becomeStreamer);
 
 export default router;

@@ -5,6 +5,7 @@ import { Glob, sql } from 'bun';
 import { SocketState } from '../socket/state';
 import { FileRequest } from '../middleware/mediaMiddlewares';
 import * as path from 'path';
+import { generateToken } from '../utils/generateToken';
 
 // Rozszerzenie interfejsu Request o pole userInfo
 declare global {
@@ -1069,4 +1070,35 @@ export const getUserAvatar = async (req: Request, res: Response) => {
         });
     }
 
+}
+
+export const becomeStreamer = async (req: Request, res: Response) => {
+    if (req.streamer !== null) {
+        console.error(`User ${req.userInfo.username} is already a streamer`);
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'User is already a streamer'
+        });
+        return;
+    }
+    try {
+        const newStreamer = await sql`
+            INSERT INTO streamers
+            VALUES (DEFAULT, ${req.userInfo.user.userId}, ${generateToken()})
+            RETURNING id, user_id
+        `;
+        console.log(`User ${req.userInfo.username} became a streamer successfully`);
+        console.log("New streamer ID: ", newStreamer[0].id);
+    } catch (error: any) {
+        console.error(`Error becoming a streamer: ${error}`);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: 'Error becoming a streamer'
+        });
+        return;
+    }
+    res.status(StatusCodes.OK).json({
+        success: true,
+        message: `User ${req.userInfo.username} became a streamer successfully`
+    });
 }

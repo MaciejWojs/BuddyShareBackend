@@ -5,6 +5,7 @@ import { sql } from 'bun';
 import axios from 'axios';
 import { transformStreamsData } from '../utils/streams';
 import { SocketState } from '../socket/state';
+import { generateToken } from '../utils/generateToken';
 
 const prisma = new PrismaClient();
 
@@ -486,7 +487,7 @@ export const getStreamerToken = async (req: Request, res: Response) => {
 export const updateStreamerToken = async (req: Request, res: Response) => {
     console.log("Updating streamer token for", req.userInfo.username);
     const streamer = req.streamer;
-    const updatedToken = require('crypto').randomBytes(64).toString('hex');
+    const updatedToken = generateToken();
 
     try {
         const updatedStreamer = await prisma.streamers.update({
