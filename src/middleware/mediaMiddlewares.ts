@@ -62,6 +62,18 @@ const upload = multer({
     }
 });
 
+/**
+ * Middleware for handling single image file upload using Multer.
+ *
+ * @param {FileRequest} req - Express request object with file typing
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {void}
+ *
+ * @example
+ * // Usage in a route:
+ * router.post('/upload', uploadMiddleware, controller);
+ */
 export const uploadMiddleware = (req: FileRequest, res: Response, next: NextFunction) => {
     upload.single('file')(req, res, function (err) {
         if (err) {
@@ -73,6 +85,18 @@ export const uploadMiddleware = (req: FileRequest, res: Response, next: NextFunc
     });
 };
 
+/**
+ * Middleware for handling optional single image file upload using Multer.
+ *
+ * @param {FileRequest} req - Express request object with file typing
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {void}
+ *
+ * @example
+ * // Usage in a route:
+ * router.post('/upload-optional', uploadMiddlewareOptional, controller);
+ */
 export const uploadMiddlewareOptional = (req: FileRequest, res: Response, next: NextFunction) => {
     upload.single('file')(req, res, function (err) {
         if (err) {
@@ -83,6 +107,18 @@ export const uploadMiddlewareOptional = (req: FileRequest, res: Response, next: 
     });
 };
 
+/**
+ * Middleware for handling multiple image file uploads (max 2 files) using Multer.
+ *
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {void}
+ *
+ * @example
+ * // Usage in a route:
+ * router.post('/upload-multiple', uploadMiddlewareMultiple, controller);
+ */
 export const uploadMiddlewareMultiple = (req: Request, res: Response, next: NextFunction) => {
     upload.array('files', 2)(req, res, function (err) {
         if (err) {
@@ -93,6 +129,14 @@ export const uploadMiddlewareMultiple = (req: Request, res: Response, next: Next
     });
 }
 
+/**
+ * Processes an image file or array of image files, generating multiple variants (thumbnail, avatar, cover, banner).
+ *
+ * @param {Express.Multer.File | Express.Multer.File[]} file - The file or files to process
+ * @returns {Promise<void>} - Resolves when processing is complete
+ *
+ * @throws Will throw an error if file is invalid, too large, or processing fails
+ */
 const processImage = async (file: Express.Multer.File | Express.Multer.File[]) => {
     const files = Array.isArray(file) ? file : [file];
 
@@ -147,6 +191,14 @@ const processImage = async (file: Express.Multer.File | Express.Multer.File[]) =
     }));
 }
 
+/**
+ * Middleware that generates social media image variants for a single uploaded file.
+ *
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>} - Calls next() on success, sends error on failure
+ */
 export const generateSocialMediaImages = async (req: Request, res: Response, next: NextFunction) => {
     try {
         if (!req.file || !req.file.path) {
@@ -164,6 +216,14 @@ export const generateSocialMediaImages = async (req: Request, res: Response, nex
     }
 };
 
+/**
+ * Middleware that generates social media image variants for multiple uploaded files.
+ *
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>} - Calls next() on success, sends error on failure
+ */
 export const generateSocialMediaImagesMultiple = async (req: Request, res: Response, next: NextFunction) => {
     try {
         await processImage(req.files as Express.Multer.File[]);
