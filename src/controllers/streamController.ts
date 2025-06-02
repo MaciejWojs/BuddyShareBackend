@@ -16,6 +16,23 @@ interface StreamRequest extends Request {
     userInfo?: any;
 }
 
+/**
+ * Combines and returns stream, streamer, and user info for all or a specific streamer.
+ *
+ * @async
+ * @function helperCombineStreams
+ * @param {number | null} [streamerId=null] - Optional streamer ID to filter streams
+ * @returns {Promise<StreamData[]>} - Returns an array of stream data objects without access tokens or emails
+ *
+ * @example
+ * // helperCombineStreams()
+ * // Returns: [ ...stream data ]
+ *
+ * // helperCombineStreams(123)
+ * // Returns: [ ...stream data for streamer 123 ]
+ *
+ * @throws Will log and return an empty array if there is an error fetching streams
+ */
 const helperCombineStreams = async (streamerId: number | null = null) => {
     const host = process.env.STREAM_HOST_VIDEO || "http://localhost";
     try {
@@ -83,6 +100,23 @@ const helperCombineStreams = async (streamerId: number | null = null) => {
     return [];
 }
 
+/**
+ * Retrieves all streams, combining stream, streamer, and user info.
+ *
+ * @async
+ * @function getAllStreams
+ * @param {Request} _req - Express request object (unused)
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON array of streams or an error message
+ *
+ * @example
+ * // GET /api/streams
+ * // Success response: [ ...streams ]
+ * // Error response:
+ * // {
+ * //   error: 'Internal Server Error'
+ * // }
+ */
 export const getAllStreams = async (_req: Request, res: Response) => {
     try {
         const combinedStreams = await helperCombineStreams();
@@ -94,6 +128,20 @@ export const getAllStreams = async (_req: Request, res: Response) => {
 };
 
 // * Verifies streamer token in OBS
+/**
+ * Notifies the system that a stream has started (OBS token verification).
+ *
+ * @async
+ * @function notifyStreamStart
+ * @param {Request} req - Express request object containing streamer info
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns status or error
+ *
+ * @example
+ * // POST /api/streams/start
+ * // Success: 200 OK
+ * // Error: 400 Bad Request or 500 Internal Server Error
+ */
 export const notifyStreamStart = async (req: Request, res: Response) => {
     console.log('notifyStreamStart endpoint hit');
 
@@ -160,6 +208,20 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
     }
 }
 
+/**
+ * Notifies the system that a stream has ended.
+ *
+ * @async
+ * @function notifyStreamEnd
+ * @param {Request} req - Express request object containing streamer info
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns status or error
+ *
+ * @example
+ * // POST /api/streams/end
+ * // Success: 200 OK
+ * // Error: 400 Bad Request or 500 Internal Server Error
+ */
 export const notifyStreamEnd = async (req: Request, res: Response) => {
     console.log('notifyStreamEnd endpoint hit');
     const streamerId = req.streamer.streamerId;
@@ -198,6 +260,18 @@ export const notifyStreamEnd = async (req: Request, res: Response) => {
     return;
 }
 
+/**
+ * Gets the count of live streams for a given streamer.
+ *
+ * @async
+ * @function getStreamerStreamsCount
+ * @param {number} streamerId - The ID of the streamer
+ * @returns {Promise<number>} - Returns the count of live streams
+ *
+ * @example
+ * // getStreamerStreamsCount(123)
+ * // Returns: 1
+ */
 const getStreamerStreamsCount = async (streamerId: number) => {
     const query = await sql`SELECT COUNT(*) cnt
     FROM streams s 
@@ -207,6 +281,23 @@ const getStreamerStreamsCount = async (streamerId: number) => {
     return query[0].cnt;
 }
 
+/**
+ * Retrieves a specific stream for a streamer by stream ID.
+ *
+ * @async
+ * @function getStream
+ * @param {Request} req - Express request object containing userInfo, streamer, and stream ID in params
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns the stream data or an error message
+ *
+ * @example
+ * // GET /api/streams/:id
+ * // Success response: { ...stream data }
+ * // Error response:
+ * // {
+ * //   error: 'Stream ID is required' | 'Stream not found'
+ * // }
+ */
 export const getStream = async (req: Request, res: Response) => {
     console.log('getStream endpoint hit for user:', req.userInfo.username);
     const streamerId = req.streamer.streamerId;
@@ -235,6 +326,24 @@ export const getStream = async (req: Request, res: Response) => {
 
 }
 
+/**
+ * Updates a stream's title, description, visibility, and thumbnail.
+ *
+ * @async
+ * @function patchStream
+ * @param {Request} req - Express request object containing userInfo, streamer, stream ID in params, and update data in body
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns the updated stream or an error message
+ *
+ * @example
+ * // PATCH /api/streams/:id
+ * // Body: { title, description, isPublic, thumbnail }
+ * // Success response: { ...updated stream data }
+ * // Error response:
+ * // {
+ * //   error: 'Stream ID is required' | 'Stream not found' | 'Internal server error'
+ * // }
+ */
 export const patchStream = async (req: Request, res: Response) => {
     const streamerUsername = req.userInfo.username;
     console.log('patchStream endpoint hit for user:', streamerUsername);
@@ -330,6 +439,26 @@ export const patchStream = async (req: Request, res: Response) => {
 
 }
 
+/**
+ * Soft deletes a stream by setting its isDeleted flag to true.
+ *
+ * @async
+ * @function softDeleteStream
+ * @param {Request} req - Express request object containing userInfo, streamer, and stream option ID in params
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns the updated stream or an error message
+ *
+ * @example
+ * // PATCH /api/streams/:id/soft-delete
+ * // Success response:
+ * // {
+ * //   ...updated stream data
+ * // }
+ * // Error response:
+ * // {
+ * //   error: 'Stream ID is required' | 'Stream not found'
+ * // }
+ */
 export const softDeleteStream = async (req: Request, res: Response) => {
     console.log('softDeleteStream endpoint hit for user:', req.userInfo.username);
     const streamerId = req.streamer.streamerId;
@@ -359,6 +488,20 @@ export const softDeleteStream = async (req: Request, res: Response) => {
 }
 
 
+/**
+ * Resolves and returns the streamer's access token for a given stream ID.
+ *
+ * @async
+ * @function resolveStreamerToken
+ * @param {StreamRequest} req - Express request object containing streamId
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Sets the token header and returns status or error
+ *
+ * @example
+ * // GET /api/streams/:id/resolve-token
+ * // Success: sets Token header and returns 200 OK
+ * // Error: 404 Not Found or 500 Internal Server Error
+ */
 export const resolveStreamerToken = async (req: StreamRequest, res: Response) => {
     console.log('resolveStreamerToken endpoint hit');
 
