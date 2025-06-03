@@ -626,10 +626,53 @@ export const deleteStreamerSubscription = async (req: Request, res: Response) =>
     return;
 }
 
+/**
+ * Returns the top X most active chat users from all finished and public streams of a given streamer.
+ *
+ * @async
+ * @function getTopChatUsersForStreamer
+ * @param {Request} req - Express request object containing streamer info
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Sends a JSON response with the top chat users
+ *
+ * @example
+ * // Usage in a route definition:
+ * router.get('/streamers/:username/top-chat-users', getTopChatUsersForStreamer);
+ */
+export const getTopChatUsersForStreamer = async (req: Request, res: Response) => {    console.log("Getting streamers stats for", req.userInfo.username);
+    const streamerId = req.streamer?.streamerId;
+
+    const limit = 10;
+
+    const top_chat_users_for_streamer = await sql`
+        SELECT * from get_top_chat_users_for_streamer(${streamerId}, ${limit})
+    `;
 
 
 
+    res.status(StatusCodes.OK).json({
+        message: ReasonPhrases.OK,
+        stats: {
+            topChatUsers: top_chat_users_for_streamer,
+        }
+    })
+}
 
+export const getRaportForStreamer = async (req: Request, res: Response) => {
+    console.log("Getting raport for streamer", req.userInfo.username);
+    const streamerId = req.streamer?.streamerId;
 
-
-
+    const raport = await sql`
+        SELECT * from get_streaming_report_for_streamer(${streamerId})
+    `;
+    if (raport.length === 0) {
+        res.status(StatusCodes.NOT_FOUND).json({
+            message: "No raport found for this streamer"
+        });
+        return;
+    }
+    res.status(StatusCodes.OK).json({
+        message: ReasonPhrases.OK,
+        raport: raport[0]
+    });
+}
