@@ -25,6 +25,8 @@ router.get('/notify/start', Streams.notifyStreamStart);
 router.get('/notify/end', Streams.notifyStreamEnd);
 router.get('/token', cors(corsOptions), resolveStreamerTokenCache, Streams.resolveStreamerToken);
 
+router.get('/:username/:id/thumbnail', Streams.getStreamThumbnail);
+
 router.use('/:username', authenticate, userExistsMiddleware, isStreamer, checkUserResourceOwnership);
 router.get('/:username/:id', Streams.getStream);
 router.patch('/:username/:id', uploadMiddleware, generateSocialMediaImages, Streams.patchStream);

@@ -581,4 +581,10 @@ export class SocketState {
     if (!stream) return null;
     return stream.metadata.streamerId;
   }
+
+  static getStreamThumbnail(streamId: string): string | null {
+    const stream = this.streams.get(streamId);
+    if (!stream) return null;
+    return stream.metadata.thumbnail || null;
+  }
 }

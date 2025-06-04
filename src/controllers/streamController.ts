@@ -3,7 +3,10 @@ import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { file, sql } from 'bun';
 import { notifyStreamerSubscribers, broadcastPatchStream, broadcastStreamEnd, notifyStreamer, broadcastStream } from '../socket';
 import { tokenCache } from '../middleware/cache';
-import { FileRequest } from '../middleware/mediaMiddlewares';
+import { FileRequest, ImageTypes } from '../middleware/mediaMiddlewares';
+import { SocketState } from '../socket/state';
+import { findImage } from '../utils/findImage';
+import path from 'path';
 
 interface StreamData {
     access_token: any;
@@ -552,4 +555,55 @@ export const resolveStreamerToken = async (req: StreamRequest, res: Response) =>
         res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR);
         return;
     }
+}
+
+export const getStreamThumbnail = async (req: StreamRequest, res: Response) => {
+    let streamId: number | null = null;
+    try {
+        streamId = parseInt(req.params.id);
+    } catch (error) {
+        console.error('Invalid stream ID:', req.params.id);
+        res.status(StatusCodes.BAD_REQUEST).json({ error: 'Invalid stream ID' });
+        return;
+    }
+
+    if (!streamId) {
+        res.status(StatusCodes.BAD_REQUEST).json({ error: 'Stream ID is required' });
+        return;
+    }
+
+    let thumbnailHash = SocketState.getStreamThumbnail(req.streamId!);
+    if (!thumbnailHash) {
+        const dbThumbnail = await sql`
+            SELECT thumbnail
+            FROM stream_options
+            WHERE id = ${streamId}
+        `;
+        
+        if (dbThumbnail.length === 0 || !dbThumbnail[0].thumbnail) {
+            console.error(`Thumbnail not found for stream ID: ${streamId}`);
+            res.status(StatusCodes.NOT_FOUND).json({ error: 'Thumbnail not found' });
+            return;
+        }
+        
+        thumbnailHash = dbThumbnail[0].thumbnail;
+    }
+
+    const thumbnailFile = await findImage(ImageTypes.THUMBNAIL, thumbnailHash!);
+
+    if (!thumbnailFile) {
+        console.error(`Thumbnail not found for stream ID: ${streamId}`);
+        res.status(StatusCodes.NOT_FOUND).json({ error: 'Thumbnail not found' });
+        return;
+    }
+
+    const ext = path.extname(thumbnailFile.name!).toLowerCase();
+    let mime = 'application/octet-stream';
+    if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
+    if (ext === '.png') mime = 'image/png';
+    if (ext === '.webp') mime = 'image/webp';
+
+    res.setHeader('Content-Type', mime);
+    const arrayBuffer = await thumbnailFile.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
 }

@@ -3,9 +3,10 @@ import { PrismaClient, Role } from '@prisma/client';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
 import { Glob, sql } from 'bun';
 import { SocketState } from '../socket/state';
-import { FileRequest } from '../middleware/mediaMiddlewares';
+import { FileRequest, ImageTypes } from '../middleware/mediaMiddlewares';
 import * as path from 'path';
 import { generateToken } from '../utils/generateToken';
+import { findImage } from '../utils/findImage';
 
 // Rozszerzenie interfejsu Request o pole userInfo
 declare global {
@@ -1288,12 +1289,7 @@ export const getUserAvatar = async (req: Request, res: Response) => {
             return;
         }
 
-        const glob = new Glob("media/" + result[0].profile_picture + "/avatar.*");
-        let avatarFile = null;
-        for await (const file of glob.scan()) {
-            avatarFile = Bun.file(file);
-            console.log("Avatar file search: ", file);
-        }
+        const avatarFile = await findImage(ImageTypes.AVATAR, result[0].profile_picture);
 
         if (!avatarFile) {
             res.status(StatusCodes.NOT_FOUND).json({
