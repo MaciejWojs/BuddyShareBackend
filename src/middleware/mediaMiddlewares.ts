@@ -74,7 +74,7 @@ const upload = multer({
  * // Usage in a route:
  * router.post('/upload', uploadMiddleware, controller);
  */
-export const uploadMiddleware = (req: FileRequest, res: Response, next: NextFunction) => {
+export const uploadMiddleware = (req: Request, res: Response, next: NextFunction) => {
     upload.single('file')(req, res, function (err) {
         if (err) {
             res.sendStatus(StatusCodes.BAD_REQUEST);

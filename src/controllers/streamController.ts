@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
-import { sql } from 'bun';
+import { file, sql } from 'bun';
 import { notifyStreamerSubscribers, broadcastPatchStream, broadcastStreamEnd, notifyStreamer, broadcastStream } from '../socket';
 import { tokenCache } from '../middleware/cache';
+import { FileRequest } from '../middleware/mediaMiddlewares';
 
 interface StreamData {
     access_token: any;
@@ -362,6 +363,20 @@ export const patchStream = async (req: Request, res: Response) => {
     const streamDescription = req.body.description;
     const streamIsPublic = req.body.isPublic;
 
+    const file = req.file as Express.Multer.File | undefined;
+    const fileHashes = (req as FileRequest).fileHashes;
+
+    console.log(`Files: ${file}`);
+    console.log(`File hashes: ${fileHashes}`);
+    console.log(`fileHashes length: ${fileHashes ? fileHashes.length : 0}`);
+
+    let thumbnail = null;
+    if (file && fileHashes && fileHashes[0] && fileHashes.length === 1) {
+        thumbnail = fileHashes[0];
+        console.log(`Thumbnail file hash: ${thumbnail}`);
+    }
+
+    console.log(`has thumbnail: ${thumbnail}`);
 
     const stream = await sql`
     UPDATE stream_options
@@ -369,7 +384,7 @@ export const patchStream = async (req: Request, res: Response) => {
         description = ${streamDescription},
         "isPublic" = ${streamIsPublic},
         updated_at = DEFAULT,
-        thumbnail = ${req.body.thumbnail || null} 
+        thumbnail = ${thumbnail} 
     WHERE id = ${streamOptionId}
     RETURNING *;
 `

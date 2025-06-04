@@ -6,6 +6,7 @@ import { hasStreamerToken, isValidStreamerToken } from '../middleware/isStreamer
 import { resolveStreamerTokenCache } from '../middleware/cache';
 import { userExistsMiddleware } from '../middleware/userExist';
 import cors from 'cors';
+import { generateSocialMediaImages, uploadMiddleware } from '../middleware/mediaMiddlewares';
 
 const host = process.env.STREAM_HOST_VIDEO || "http://localhost:80/";
 
@@ -26,7 +27,7 @@ router.get('/token', cors(corsOptions), resolveStreamerTokenCache, Streams.resol
 
 router.use('/:username', authenticate, userExistsMiddleware, isStreamer, checkUserResourceOwnership);
 router.get('/:username/:id', Streams.getStream);
-router.patch('/:username/:id', Streams.patchStream);
+router.patch('/:username/:id', uploadMiddleware, generateSocialMediaImages, Streams.patchStream);
 router.delete('/:username/:id', Streams.softDeleteStream);
 
 export default router;
