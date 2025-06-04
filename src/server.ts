@@ -34,10 +34,10 @@ process.on('SIGTERM', handleShutdown);
 
 const server = createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: `http://${process.env.FRONT_HOST}:${process.env.FRONT_PORT || 5000}`,
-    credentials: true
-  }
+  // cors: {
+  //   origin: `http://${process.env.FRONT_HOST}:${process.env.FRONT_PORT || 5000}`,
+  //   credentials: true
+  // }
 });
 
 setupSocketServer(io);

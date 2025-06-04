@@ -1,0 +1,110 @@
+# --------------------------------------------------------------------
+# Etap 1: build (kompilacja ModSecurity + modułu nginx)
+# --------------------------------------------------------------------
+ARG NGINX_VER=1.28.0
+
+FROM nginx:${NGINX_VER}-alpine AS base
+
+ARG MODSEC_TAG=v3.0.8
+ARG OWASP_TAG=v4.15.0
+ARG NGINX_VER
+
+WORKDIR /opt
+
+# 1. Instalacja zależności do kompilacji ModSecurity i Nginx-module
+RUN apk add --no-cache --virtual .build-deps \
+        autoconf \
+        automake \
+        byacc \
+        bash \
+        curl-dev \
+        flex \
+        g++ \
+        gcc \
+        geoip-dev \
+        git \
+        libc-dev \
+        libmaxminddb-dev \
+        libstdc++ \
+        libtool \
+        libxml2-dev \
+        linux-headers \
+        lmdb-dev \
+        make \
+        openssl-dev \
+        pcre-dev \
+        yajl-dev \
+        zlib-dev \
+        gettext
+
+# 2. Klonowanie i kompilacja ModSecurity
+RUN git clone -b ${MODSEC_TAG} --depth 1 https://github.com/SpiderLabs/ModSecurity.git && \
+    cd ModSecurity && \
+    git submodule update --init --recursive && \
+    sh build.sh && \
+    # Dodajemy ręczne odświeżenie autotooli, by uniknąć błędu "newly created file is older than..."
+    autoreconf -fvi && \
+    ./configure --with-lmdb && \
+    make && \
+    make install
+
+# 3. Klonowanie konektora ModSecurity-nginx i OWASP CRS
+RUN git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git && \
+    git clone -b ${OWASP_TAG} --depth 1 https://github.com/coreruleset/coreruleset.git /usr/local/owasp-modsecurity-crs
+
+# 4. Pobranie i rozpakowanie źródeł Nginx (do kompilacji dynamicznego modułu)
+RUN wget http://nginx.org/download/nginx-${NGINX_VER}.tar.gz && \
+    tar -xzvf nginx-${NGINX_VER}.tar.gz
+
+# 5. Kompilacja modułu ModSecurity dla Nginx jako dynamicznego modułu
+RUN cd nginx-${NGINX_VER} && \
+    ./configure --with-compat --add-dynamic-module=../ModSecurity-nginx && \
+    make modules && \
+    cp objs/ngx_http_modsecurity_module.so /usr/lib/nginx/modules/
+
+# 6. Sprzątanie zależności kompilacyjnych i plików tymczasowych
+RUN apk del .build-deps && \
+    rm -rf /opt/*
+
+# --------------------------------------------------------------------
+# Etap 2: production (kopia ModSecurity + modułu + CRS + konfiguracja)
+# --------------------------------------------------------------------
+FROM nginx:${NGINX_VER}-alpine AS production
+
+LABEL maintainer="WAF Container"
+
+# 1. Kopiowanie plików ModSecurity oraz OWASP CRS
+COPY --from=base /usr/local/modsecurity /usr/local/modsecurity
+COPY --from=base /usr/local/owasp-modsecurity-crs /usr/local/owasp-modsecurity-crs
+COPY --from=base /usr/lib/nginx/modules/ /usr/lib/nginx/modules/
+
+# 2. Instalacja niezbędnych bibliotek runtime
+RUN apk add --no-cache \
+        curl \
+        wget \
+        gettext \
+        libmaxminddb \
+        libstdc++ \
+        libxml2 \
+        lmdb \
+        pcre \
+        yajl
+
+# 3. Utworzenie odpowiednich katalogów na konfigurację WAF-a
+RUN mkdir -p /etc/nginx/modsecurity/owasp-crs
+
+# 4. Kopiowanie własnych plików konfiguracyjnych
+COPY nginx-waf.conf /etc/nginx/nginx.conf.template
+COPY modsecurity.conf /etc/nginx/modsecurity/modsecurity.conf
+COPY crs-setup.conf /etc/nginx/modsecurity/crs-setup.conf
+
+# 5. Skopiowanie reguł OWASP CRS do katalogu konfiguracyjnego
+RUN cp -R /usr/local/owasp-modsecurity-crs/rules/* /etc/nginx/modsecurity/owasp-crs/
+
+EXPOSE 80 443
+
+# 6. EntryPoint: generowanie końcowego nginx.conf z envsubst i uruchomienie Nginx
+ENTRYPOINT ["sh", "-c", "export DOLLAR='$' && \
+    envsubst '$BACKEND_HOST $NGINX_HOST $FRONT_HOST $FRONT_PORT $DOLLAR' < /etc/nginx/nginx.conf.template \
+    > /etc/nginx/nginx.conf && \
+    exec nginx -g 'daemon off;'"]

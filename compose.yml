@@ -1,4 +1,33 @@
 services:
+  # WAF jako pierwsza warstwa obrony
+  waf:
+    image: nginx-waf
+    build:
+      context: ./nginx-waf
+      dockerfile: Dockerfile
+    container_name: nginx-waf
+    restart: unless-stopped
+    depends_on:
+      - app
+      - nginx
+    environment:
+      BACKEND_HOST: app
+      NGINX_HOST: nginx
+      FRONT_HOST: ${FRONT_HOST}
+      FRONT_PORT: ${FRONT_PORT}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./logs/waf:/var/log/nginx
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   db:
     image: postgres:alpine
     container_name: postgres-db
@@ -39,10 +68,10 @@ services:
       DEVELOPMENT: ${DEVELOPMENT} # true or false
     volumes:
       - ./media:/app/media
-    ports:
-      - "5000:5000"
-      # - "1935:1935"
-      - "8000:8000"
+    # Usuń publiczne porty - dostęp tylko przez WAF
+    # ports:
+    #   - "5000:5000"
+    #   - "8000:8000"
     networks:
       - backend
     develop:
@@ -77,8 +106,9 @@ services:
       HOST: app
     ports:
       - "1935:1935"
+      # Usuń publiczne porty - dostęp tylko przez WAF
       # - "8080:8080"
-      - "80:80"
+      # - "80:80"
     networks:
       - backend
     develop:

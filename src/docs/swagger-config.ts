@@ -23,7 +23,7 @@ export function createSwaggerSpec(language: 'en' | 'pl' = 'en'): object {
     },
     servers: [
       {
-        url: `http://localhost:${process.env.PORT || 5000}`,
+        url: `http://localhost`,
         description: isEnglish ? 'Development server' : 'Serwer deweloperski'
       }
     ],
