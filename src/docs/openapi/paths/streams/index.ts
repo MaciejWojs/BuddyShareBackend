@@ -10,38 +10,33 @@ export const streamsPathsEN = {
           content: {
             'application/json': {
               schema: {
-                type: 'object',
-                properties: {
-                  streams: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        name: {
-                          type: 'string',
-                          description: 'Stream name'
-                        },
-                        qualities: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              name: {
-                                type: 'string',
-                                description: 'Quality name (e.g. source, 720p)'
-                              },
-                              dash: {
-                                type: 'string',
-                                description: 'DASH manifest URL'
-                              }
-                            }
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: {
+                      type: 'string',
+                      description: 'Stream name'
+                    },
+                    qualities: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          name: {
+                            type: 'string',
+                            description: 'Quality name (e.g. source, 720p)'
+                          },
+                          dash: {
+                            type: 'string',
+                            description: 'DASH manifest URL'
                           }
-                        },
-                        active: {
-                          type: 'boolean',
-                          description: 'Whether the stream is active'
                         }
                       }
+                    },
+                    active: {
+                      type: 'boolean',
+                      description: 'Whether the stream is active'
                     }
                   }
                 }
@@ -138,7 +133,7 @@ export const streamsPathsEN = {
                   description: { type: 'string' },
                   isPublic: { type: 'boolean' },
                   isLive: { type: 'boolean' },
-                  thumbnail: { 
+                  thumbnail: {
                     type: 'string',
                     nullable: true
                   },
@@ -210,7 +205,7 @@ export const streamsPathsEN = {
                 title: { type: 'string' },
                 description: { type: 'string' },
                 isPublic: { type: 'boolean' },
-                thumbnail: { 
+                thumbnail: {
                   type: 'string',
                   nullable: true
                 }
@@ -232,7 +227,7 @@ export const streamsPathsEN = {
                   description: { type: 'string' },
                   isPublic: { type: 'boolean' },
                   isLive: { type: 'boolean' },
-                  thumbnail: { 
+                  thumbnail: {
                     type: 'string',
                     nullable: true
                   },
@@ -259,7 +254,7 @@ export const streamsPathsEN = {
             }
           }
         },
-'403': {
+        '403': {
           description: 'Forbidden - not the stream owner or missing streamer role',
           content: {
             'application/json': {
@@ -388,38 +383,33 @@ export const streamsPathsPL = {
           content: {
             'application/json': {
               schema: {
-                type: 'object',
-                properties: {
-                  streams: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        name: {
-                          type: 'string',
-                          description: 'Nazwa transmisji'
-                        },
-                        qualities: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              name: {
-                                type: 'string',
-                                description: 'Nazwa jakości (np. source, 720p)'
-                              },
-                              dash: {
-                                type: 'string',
-                                description: 'URL manifestu DASH'
-                              }
-                            }
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: {
+                      type: 'string',
+                      description: 'Nazwa transmisji'
+                    },
+                    qualities: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          name: {
+                            type: 'string',
+                            description: 'Nazwa jakości (np. source, 720p)'
+                          },
+                          dash: {
+                            type: 'string',
+                            description: 'URL manifestu DASH'
                           }
-                        },
-                        active: {
-                          type: 'boolean',
-                          description: 'Czy transmisja jest aktywna'
                         }
                       }
+                    },
+                    active: {
+                      type: 'boolean',
+                      description: 'Czy transmisja jest aktywna'
                     }
                   }
                 }
@@ -516,7 +506,7 @@ export const streamsPathsPL = {
                   description: { type: 'string' },
                   isPublic: { type: 'boolean' },
                   isLive: { type: 'boolean' },
-                  thumbnail: { 
+                  thumbnail: {
                     type: 'string',
                     nullable: true
                   },
@@ -588,7 +578,7 @@ export const streamsPathsPL = {
                 title: { type: 'string' },
                 description: { type: 'string' },
                 isPublic: { type: 'boolean' },
-                thumbnail: { 
+                thumbnail: {
                   type: 'string',
                   nullable: true
                 }
@@ -610,7 +600,7 @@ export const streamsPathsPL = {
                   description: { type: 'string' },
                   isPublic: { type: 'boolean' },
                   isLive: { type: 'boolean' },
-                  thumbnail: { 
+                  thumbnail: {
                     type: 'string',
                     nullable: true
                   },
@@ -637,7 +627,7 @@ export const streamsPathsPL = {
             }
           }
         },
-'403': {
+        '403': {
           description: 'Zabroniony - nie jest właścicielem transmisji lub brak roli streamera',
           content: {
             'application/json': {

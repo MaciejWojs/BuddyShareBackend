@@ -31,15 +31,28 @@ export const authPathsEN = {
           description: 'Missing required fields',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'Missing required fields: username and passwordHash' }
+                }
+              }
             }
           }
         },
         '401': {
-          description: 'Invalid credentials',
+          description: 'Invalid credentials or user is banned',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  cause: { type: 'string', example: 'credentials' },
+                  message: { type: 'string', example: 'Invalid credentials' }
+                }
+              }
             }
           }
         },
@@ -47,7 +60,13 @@ export const authPathsEN = {
           description: 'Internal server error',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'Internal server error during authentication' }
+                }
+              }
             }
           }
         }
@@ -165,33 +184,51 @@ export const authPathsEN = {
       }
     }
   },
-  '/auth/test': {
-    get: {
+  '/auth/refresh-token': {
+    post: {
       tags: ['Authentication'],
-      summary: 'Test authentication',
-      description: 'Test endpoint for authentication verification',
-      security: [{ cookieAuth: [] }],
+      summary: 'Refresh access token',
+      description: 'Refreshes the access token using a valid refresh token',
       responses: {
         '200': {
-          description: 'Authentication test successful',
+          description: 'Token refreshed successfully',
           content: {
             'application/json': {
               schema: {
                 type: 'object',
                 properties: {
                   success: { type: 'boolean', example: true },
-                  message: { type: 'string', example: 'Authentication test successful' },
-                  user: { $ref: '#/components/schemas/User' }
+                  message: { type: 'string', example: 'Token refreshed successfully' }
                 }
               }
             }
           }
         },
         '401': {
-          description: 'Not authenticated',
+          description: 'Invalid or expired refresh token',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'Invalid refresh token' }
+                }
+              }
+            }
+          }
+        },
+        '500': {
+          description: 'Internal server error',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'Internal server error during token refresh' }
+                }
+              }
             }
           }
         }
@@ -233,15 +270,28 @@ export const authPathsPL = {
           description: 'Brak wymaganych pól',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'Brak wymaganych pól: nazwa użytkownika i hash hasła' }
+                }
+              }
             }
           }
         },
         '401': {
-          description: 'Nieprawidłowe dane logowania',
+          description: 'Nieprawidłowe dane logowania lub użytkownik zbanowany',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  cause: { type: 'string', example: 'credentials' },
+                  message: { type: 'string', example: 'Nieprawidłowe dane logowania' }
+                }
+              }
             }
           }
         },
@@ -249,7 +299,13 @@ export const authPathsPL = {
           description: 'Wewnętrzny błąd serwera',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'Wewnętrzny błąd serwera podczas uwierzytelniania' }
+                }
+              }
             }
           }
         }
@@ -367,33 +423,51 @@ export const authPathsPL = {
       }
     }
   },
-  '/auth/test': {
-    get: {
+  '/auth/refresh-token': {
+    post: {
       tags: ['Uwierzytelnianie'],
-      summary: 'Test uwierzytelnienia',
-      description: 'Punkt końcowy do testowania uwierzytelnienia',
-      security: [{ cookieAuth: [] }],
+      summary: 'Odśwież token dostępu',
+      description: 'Odświeża token dostępu używając ważnego tokena odświeżania',
       responses: {
         '200': {
-          description: 'Test uwierzytelnienia pomyślny',
+          description: 'Token odświeżony pomyślnie',
           content: {
             'application/json': {
               schema: {
                 type: 'object',
                 properties: {
                   success: { type: 'boolean', example: true },
-                  message: { type: 'string', example: 'Test uwierzytelnienia pomyślny' },
-                  user: { $ref: '#/components/schemas/User' }
+                  message: { type: 'string', example: 'Token odświeżony pomyślnie' }
                 }
               }
             }
           }
         },
         '401': {
-          description: 'Brak uwierzytelnienia',
+          description: 'Nieprawidłowy lub wygasły token odświeżania',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'Nieprawidłowy token odświeżania' }
+                }
+              }
+            }
+          }
+        },
+        '500': {
+          description: 'Wewnętrzny błąd serwera',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'Wewnętrzny błąd serwera podczas odświeżania tokena' }
+                }
+              }
             }
           }
         }
