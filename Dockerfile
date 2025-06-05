@@ -1,5 +1,5 @@
 # === Builder Stage ===
-FROM oven/bun:alpine AS builder
+FROM oven/bun:1.2.15-alpine AS builder
 
 WORKDIR /app
 
@@ -9,7 +9,6 @@ COPY package.json bun.lock ./
 # Install dependencies
 RUN bun install
 
-
 # Copy only Prisma files for generate step
 COPY prisma ./prisma
 COPY .env .env 
@@ -17,16 +16,14 @@ COPY .env .env
 # Generate Prisma client
 RUN bunx prisma generate
 
-
 # Copy the rest of the project files
 COPY . .
 
-# Generate Prisma client and build the app
+# Build the app
 RUN bun run build
 
-
 # === Production Stage ===
-FROM oven/bun:alpine AS production
+FROM oven/bun:1.2.15-alpine AS production
 
 WORKDIR /app
 
@@ -45,5 +42,7 @@ COPY --from=builder /app/prisma ./prisma
 # No need to regenerate the client if it's built already
 # So we remove this line:
 COPY --from=builder /app/dist/ .
+
+EXPOSE 3000
 
 CMD ["bun", "run", "container"]

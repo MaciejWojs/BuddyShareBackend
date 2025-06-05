@@ -1,40 +1,41 @@
-# Start from an Alpine base image
-FROM alpine:latest
+# ----------------------------------------------------------
+#                         ETAP 1: BUILDER
+# ----------------------------------------------------------
+ARG ALPINE_VERSION=3.22
+FROM alpine:${ALPINE_VERSION} AS builder
 
-# Install necessary dependencies for building NGINX with the RTMP module
-RUN apk update && \
-    apk add --no-cache \
-    gettext \
-    ffmpeg \
-    nginx \
-    gcc \
-    g++ \
-    make \
+# 1) Podajemy wersje Nginx i HTTP-FLV jako ARGi, żeby łatwiej zmieniać
+ARG NGINX_VERSION=1.28.0
+ARG HTTP_FLV_VERSION=1.2.12
+
+# 2) Instalacja wszystkich build‐dependencies (w tym openssl-dev dla SSL)
+RUN apk add --no-cache \
+    build-base \
     pcre-dev \
     zlib-dev \
     openssl-dev \
     git \
     bash \
-    pcre \
-    zlib \
-    openssl \
-    linux-headers
+    linux-headers \
+    wget \
+    ca-certificates
 
-# Pobierz źródła Nginx z tej samej wersji co zainstalowany pakiet i zapisz wersję
-RUN mkdir -p /src && \
-    cd /src && \
-    nginx_version=$(nginx -v 2>&1 | sed 's/^.*nginx\///' | sed 's/ .*$//') && \
-    echo "export NGINX_VERSION=${nginx_version}" > /tmp/nginx_version.sh && \
-    wget http://nginx.org/download/nginx-${nginx_version}.tar.gz && \
-    tar -xzf nginx-${nginx_version}.tar.gz
+# 3) Ściągnięcie i rozpakowanie źródeł Nginx w jednym kroku
+RUN mkdir -p /src \
+    && cd /src \
+    && wget -q http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz \
+    && tar -xzf nginx-${NGINX_VERSION}.tar.gz \
+    && rm nginx-${NGINX_VERSION}.tar.gz
 
-# Clone the HTTP-FLV module (zamiast RTMP module)
-RUN git clone https://github.com/winshining/nginx-http-flv-module.git /src/nginx-http-flv-module
+# 4) Sklonowanie modułu HTTP-FLV (tylko ostatni commit z konkretnego tagu)
+RUN git clone --depth 1 --branch v${HTTP_FLV_VERSION} \
+    https://github.com/winshining/nginx-http-flv-module.git \
+    /src/nginx-http-flv-module
 
-# Compile NGINX with the HTTP-FLV module
-RUN . /tmp/nginx_version.sh && \
-    cd /src/nginx-${NGINX_VERSION} && \
-    ./configure \
+# 5) Kompilacja Nginx z modułem FLV z wykorzystaniem wszystkich rdzeni:
+#    - make -j$(nproc)
+RUN cd /src/nginx-${NGINX_VERSION} \
+    && ./configure \
     --prefix=/etc/nginx \
     --sbin-path=/usr/sbin/nginx \
     --conf-path=/etc/nginx/nginx.conf \
@@ -60,30 +61,62 @@ RUN . /tmp/nginx_version.sh && \
     --with-stream \
     --with-stream_ssl_module \
     --with-file-aio \
-    --add-module=/src/nginx-http-flv-module && \
-    make && \
-    make install
+    --add-module=/src/nginx-http-flv-module \
+    && make -j$(nproc) \
+    && make install
 
+# 6) Sprzątanie: usuwamy build-dependencies i źródła (pozostaje tylko /usr/sbin/nginx i /etc/nginx)
+RUN apk del --no-network \
+    build-base \
+    pcre-dev \
+    zlib-dev \
+    openssl-dev \
+    git \
+    linux-headers \
+    wget \
+    && rm -rf /src \
+    && rm -rf /var/cache/apk/*
 
-# Copy the nginx.conf with RTMP configuration
+# ----------------------------------------------------------
+#                     ETAP 2: PRODUKCJA (runtime)
+# ----------------------------------------------------------
+FROM alpine:${ALPINE_VERSION}
+
+# 1) Instalujemy tylko RUNTIME-dependencies + envsubst (z gettext)
+RUN apk add --no-cache \
+    pcre \
+    zlib \
+    openssl \
+    ffmpeg \
+    gettext \
+    ca-certificates
+
+# 2) Kopiujemy skompilowanego Nginx (binarkę + katalog /etc/nginx) z etapu builder
+COPY --from=builder /usr/sbin/nginx    /usr/sbin/nginx
+COPY --from=builder /etc/nginx         /etc/nginx
+
+# 3) Tworzymy katalogi na logi, cache i tmp
+RUN mkdir -p /var/log/nginx /var/cache/nginx /tmp/dash \
+    && chmod -R 755 /var/log/nginx /var/cache/nginx \
+    && chmod -R 777 /tmp/dash
+
+# 4) Kopiujemy plik szablonu konfiguracji dla nginx
 COPY nginx.conf /etc/nginx/nginx.conf.template
 
-# RUN ln -sf /dev/stderr /var/log/nginx/error.log  \
-#   && ln -sf /dev/stderr /tmp/ffmpeg_errors.log  \
-#   && ln -sf /dev/stdout /var/log/nginx/access.log \
-#   && ln -sf /dev/stdout /var/log/nginx/auth_request.log \
-#   && ln -sf /dev/stdout /var/log/nginx/dash_debug.log \
-#   && ln -sf /dev/stdout /var/log/nginx/target_path.log \
-#   && ln -sf /dev/stdout /var/log/nginx/auth_request_details.log \
-#   && ln -sf /dev/stdout /var/log/nginx/token_headers.log  \
-#   && ln -sf /dev/stdout /tmp/stream_start.log \
-#   && ln -sf /dev/stdout /tmp/stream_debug.log
+# 5) Otwieramy porty RTMP i HTTP
+EXPOSE 1935 80
 
-RUN mkdir -p /tmp/dash && \
-    chmod -R 777 /tmp/dash
+# 6) Healthcheck: używamy wget (już jest w runtime)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
-# Expose RTMP and HTTP ports
-EXPOSE 1935 80 8080
-
-# Start NGINX
-ENTRYPOINT ["sh", "-c", "export DOLLAR='$' && envsubst '$HOST $DOLLAR' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
+# 7) ENTRYPOINT: envsubst + uruchomienie nginx na pierwszym planie
+ENTRYPOINT ["/bin/sh", "-c", "\
+    envsubst '\
+    $HOST \
+    $PORT \
+    $DOLLAR \
+    ' < /etc/nginx/nginx.conf.template \
+    > /etc/nginx/nginx.conf && \
+    exec nginx -g 'daemon off;' \
+    "]
