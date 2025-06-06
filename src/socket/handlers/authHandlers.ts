@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { SocketState, ChatMessage, BanOptions } from '../state';
 import { sql } from 'bun';
+import { Role } from '@prisma/client';
 
 enum ChatAction {
   // EDIT = 'edit',
@@ -135,6 +136,20 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
       //   break;
       case ChatAction.BAN:
         // Sprawdź czy użytkownik już jest zbanowany
+        const userId = message.userId;
+        const role = await sql`
+            SELECT "userRole" FROM users_info WHERE id = ${userId}
+          `;
+
+        if (role && role[0] && role[0].userRole === Role.ADMIN) {
+          console.log(`User ${userId} is an admin, skipping ban.`);
+          socket.emit("banUserStatus", {
+            message: `User is an admin and cannot be banned.`,
+            success: false
+          });
+          return;
+        }
+
         const bannedUsers = SocketState.getBannedUsers(message.streamId);
         if (bannedUsers.includes(String(message.userId))) {
           socket.emit("banUserStatus", {
@@ -143,7 +158,7 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
           });
           break;
         }
-        
+
         const banSuccess = await SocketState.banUser(message.userId, message.streamId, options);
         socket.emit("banUserStatus", {
           message: banSuccess
@@ -165,7 +180,7 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
           });
           break;
         }
-        
+
         const unbanSuccess = await SocketState.unbanUser(message.userId, message.streamId);
         socket.emit("unbanUserStatus", {
           message: unbanSuccess

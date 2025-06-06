@@ -1,4 +1,5 @@
 import { sql } from 'bun';
+import { Role } from '@prisma/client'
 
 // Interfejs dla scentralizowanych informacji o streamie
 interface StreamInfo {
@@ -542,6 +543,16 @@ export class SocketState {
       console.error(`Streamer ID not found for stream ID: ${streamId}`);
       return;
     }
+
+    const role = await sql`
+      SELECT "userRole" FROM users_info WHERE id =${userId}
+    `;
+
+    if (role && role[0] && role[0].userRole === Role.ADMIN) {
+      console.log(`User ${userId} is an admin, skipping ban.`);
+      return false; // Nie banować adminów
+    }
+
 
     // Zabezpieczenie: jeśli użytkownik już jest zbanowany w state, nie wykonuj ponownie bana
     const stream = this.streams.get(String(streamId));
