@@ -626,6 +626,13 @@ export const deleteStreamerSubscription = async (req: Request, res: Response) =>
     return;
 }
 
+const getTopChatUsersForStreamerHelper = async (streamerId: number, limit: number | null = 10) => {
+    const topChatUsers = await sql`
+        SELECT * FROM get_top_chat_users_for_streamer(${streamerId}, ${limit})
+    `;
+    return topChatUsers;
+}
+
 /**
  * Returns the top X most active chat users from all finished and public streams of a given streamer.
  *
@@ -639,15 +646,11 @@ export const deleteStreamerSubscription = async (req: Request, res: Response) =>
  * // Usage in a route definition:
  * router.get('/streamers/:username/top-chat-users', getTopChatUsersForStreamer);
  */
-export const getTopChatUsersForStreamer = async (req: Request, res: Response) => {    console.log("Getting streamers stats for", req.userInfo.username);
+export const getTopChatUsersForStreamer = async (req: Request, res: Response) => {
+    console.log("Getting streamers stats for", req.userInfo.username);
     const streamerId = req.streamer?.streamerId;
 
-    const limit = 10;
-
-    const top_chat_users_for_streamer = await sql`
-        SELECT * from get_top_chat_users_for_streamer(${streamerId}, ${limit})
-    `;
-
+    const top_chat_users_for_streamer = await getTopChatUsersForStreamerHelper(streamerId, req.body?.limit);
 
 
     res.status(StatusCodes.OK).json({
@@ -675,4 +678,92 @@ export const getRaportForStreamer = async (req: Request, res: Response) => {
         message: ReasonPhrases.OK,
         raport: raport
     });
+}
+
+const getAverageStreamDurationForStreamerHelper = async (streamerId: number) => {
+    const [averageDuration] = await sql`
+        SELECT * from get_average_stream_duration_for_streamer(${streamerId}) as duration
+    `;
+    console.log("Average duration for streamer", streamerId, "is", averageDuration);
+    return averageDuration.average_duration;
+}
+
+const getBannedUsersForStreamerHelper = async (streamerId: number) => {
+    const [bannedUsers] = await sql`
+        SELECT * from get_banned_users_count_for_streamer(${streamerId}) as count
+    `;
+    return bannedUsers.count;
+}
+
+const getStreamerModeratorsCountHelper = async (streamerId: number) => {
+    const [moderatorsCount] = await sql`
+        SELECT * from get_moderators_count_for_streamer(${streamerId}) as count
+    `;
+    return moderatorsCount.count;
+}
+
+export const getAverageStreamDurationForStreamer = async (req: Request, res: Response) => {
+    console.log("Getting average stream duration for streamer", req.userInfo.username);
+    const streamerId = req.streamer?.streamerId;
+
+    const averageDuration = await getAverageStreamDurationForStreamerHelper(streamerId);
+
+    console.log("Average duration for streamer", req.userInfo.username, "is", averageDuration);
+
+    res.status(StatusCodes.OK).json({
+        message: ReasonPhrases.OK,
+        averageDuration: averageDuration
+    });
+}
+
+export const getBannedUsersForStreamer = async (req: Request, res: Response) => {
+    console.log("Getting banned users for streamer", req.userInfo.username);
+    const streamerId = req.streamer?.streamerId;
+
+    const bannedUsers = await getBannedUsersForStreamerHelper(streamerId);
+
+    res.status(StatusCodes.OK).json({
+        message: ReasonPhrases.OK,
+        bannedUsers: bannedUsers
+    });
+}
+
+export const getStreamerModeratorsCount = async (req: Request, res: Response) => {
+    console.log("Getting streamer moderators count for", req.userInfo.username);
+    const streamerId = req.streamer?.streamerId;
+
+    const moderatorsCount = await getStreamerModeratorsCountHelper(streamerId);
+
+    res.status(StatusCodes.OK).json({
+        message: ReasonPhrases.OK,
+        moderatorsCount: moderatorsCount.count
+    });
+}
+
+export const getAllStatsForStreamer = async (req: Request, res: Response) => {
+    console.log("Getting all stats for streamer", req.userInfo.username);
+    const streamerId = req.streamer?.streamerId;
+    const limit = req.body?.limit || null;
+
+    try {
+        const [averageDuration, bannedUsers, moderatorsCount, topChatUsers] = await Promise.all([
+            getAverageStreamDurationForStreamerHelper(streamerId),
+            getBannedUsersForStreamerHelper(streamerId),
+            getStreamerModeratorsCountHelper(streamerId),
+            getTopChatUsersForStreamerHelper(streamerId, limit)
+        ]);
+
+        res.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            stats: {
+                averageDuration,
+                bannedUsers,
+                moderatorsCount,
+                topChatUsers
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching all stats for streamer:', error);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+    }
 }

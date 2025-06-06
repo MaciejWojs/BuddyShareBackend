@@ -108,3 +108,67 @@ BEGIN
   WHERE ended_at IS NOT NULL AND started_at IS NOT NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Funkcja: zwraca liczbę zbanowanych użytkowników danego streamera
+DROP FUNCTION IF EXISTS get_banned_users_count_for_streamer CASCADE;
+CREATE OR REPLACE FUNCTION get_banned_users_count_for_streamer(p_streamer_id INTEGER)
+RETURNS INTEGER AS $$
+BEGIN
+  RETURN (
+    SELECT COUNT(*)
+    FROM banned_users_per_streamer b
+    JOIN streamers s ON s.id = b.streamer_id
+    WHERE s.id = p_streamer_id
+      AND b.banned_until IS NULL OR b.banned_until > NOW()
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Funkcja: zwraca liczbę moderatorów danego streamera
+DROP FUNCTION IF EXISTS get_moderators_count_for_streamer CASCADE;
+CREATE OR REPLACE FUNCTION get_moderators_count_for_streamer(p_streamer_id INTEGER)
+RETURNS INTEGER AS $$
+BEGIN
+  RETURN (
+    SELECT COUNT(*)
+    FROM stream_moderators sm
+    JOIN streamers s ON s.id = sm.streamer_id
+    WHERE s.id = p_streamer_id
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- Funkcja: zwraca najbardzej followanych streamerów
+DROP FUNCTION IF EXISTS get_top_followed_streamers(INTEGER) CASCADE;
+CREATE OR REPLACE FUNCTION get_top_followed_streamers(p_limit INTEGER)
+RETURNS TABLE(streamer_id INTEGER, username TEXT, profile_picture TEXT, followers_count INTEGER) AS $$
+BEGIN
+  RETURN QUERY
+    SELECT s.id AS streamer_id, ui.username, ui.profile_picture, COUNT(f.follower_user_id)::INTEGER AS followers_count
+    FROM streamers s
+    JOIN users u ON u.id = s.user_id
+    JOIN users_info ui ON ui.id = u.user_info_id
+    LEFT JOIN followers f ON f.followed_user_id = u.id
+    GROUP BY s.id, ui.username, ui.profile_picture
+    ORDER BY followers_count DESC
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Funkcja: zwraca najbardzej subskrybowanych streamerów
+DROP FUNCTION IF EXISTS get_top_subscribed_streamers(INTEGER) CASCADE;
+CREATE OR REPLACE FUNCTION get_top_subscribed_streamers(p_limit INTEGER)
+RETURNS TABLE(streamer_id INTEGER, username TEXT, profile_picture TEXT, subscribers_count INTEGER) AS $$
+BEGIN
+  RETURN QUERY
+    SELECT s.id AS streamer_id, ui.username, ui.profile_picture, COUNT(f.user_id)::INTEGER AS subscribers_count
+    FROM streamers s
+    JOIN users u ON u.id = s.user_id
+    JOIN users_info ui ON ui.id = u.user_info_id
+    LEFT JOIN subscribers f ON f.streamer_id = s.id
+    GROUP BY s.id, ui.username, ui.profile_picture
+    ORDER BY subscribers_count DESC
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql;
