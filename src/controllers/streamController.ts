@@ -189,26 +189,42 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
               VALUES (${streamerId}, ${opts.id})
               RETURNING id
           `;
-            res.sendStatus(StatusCodes.OK);
 
             return [stream];
         });
 
+        // NATYCHMIAST wyślij odpowiedź do OBS
+        res.sendStatus(StatusCodes.OK);
+        console.log(`${username} started streaming ▶️ - Response sent to OBS`);
 
-        const newStream = await helperCombineStreams(streamerId);
+        // Wykonaj wszystkie operacje w tle asynchronicznie
+        setImmediate(async () => {
+            try {
+                const newStream = await helperCombineStreams(streamerId);
+                
+                // Opcjonalne opóźnienie tylko dla broadcastu (jeśli potrzebne)
+                setTimeout(async () => {
+                    try {
+                        await broadcastStream(newStream[0]);
+                        notifyStreamer(stream.id, streamerUserId, username);
+                        console.log(`Broadcast completed for ${username}`);
+                    } catch (error) {
+                        console.error('Error in delayed broadcast:', error);
+                    }
+                }, 10000); 
+                
+            } catch (error) {
+                console.error('Error in background operations:', error);
+            }
+        });
 
-        await broadcastStream(newStream[0]);
-
-        notifyStreamer(stream.id, streamerUserId, username);
-
-        console.log(`${username} started streaming ▶️`);
-        return
+        return;
     } catch (error) {
         console.error('Transaction error:', error);
         res
             .status(StatusCodes.INTERNAL_SERVER_ERROR)
             .json({ error: 'Internal server error' });
-        return
+        return;
     }
 }
 

@@ -15,6 +15,27 @@ enum ChatAction {
 export const handleAuthEvents = (socket: Socket, io: Server) => {
   const publicNsp = io.of("/public");
 
+  // Pomocnicza funkcja do walidacji streama
+  const validateStream = (streamId: number) => {
+    const stream = SocketState.getStreamInfo(String(streamId));
+    if (!stream) {
+      console.error("Stream not found:", streamId);
+      return null;
+    }
+    if (!stream.metadata.isPublic) {
+      console.error("Stream is not public:", streamId);
+      return null;
+    }
+    return stream;
+  };
+
+  // Pomocnicza funkcja do powiadamiania o zmianach listy zbanowanych użytkowników
+  const notifyBannedUsersUpdate = (streamId: number, room: string) => {
+    const bannedUsers = SocketState.getBannedUsers(streamId);
+    console.log(`[notifyBannedUsersUpdate] Banned users updated for stream ${streamId}:`, bannedUsers);
+    publicNsp.to(room).emit("bannedUsersUpdated", { streamId, bannedUsers });
+  };
+
   // Obsługa zakończenia transmisji
   socket.on('endStream', (streamId: string) => {
     // Pobierz informacje o streamie przed usunięciem
@@ -87,21 +108,17 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
   });
 
   socket.on('manageChat', async (message: ChatMessage, action: ChatAction, options?: BanOptions) => {
-    //! TODO: przenieść do authHandlers dla bezpieczeństwa (teraz tylko na frontendzie jest sprawdzane)
     console.log("manageChat", message, action);
+
+    // Walidacja danych wejściowych
     if (!message.streamId) {
       console.error("Invalid streamId:", message.streamId);
       return;
     }
-    const stream = SocketState.getStreamInfo(String(message.streamId));
-    if (!stream) {
-      console.error("Stream not found:", message.streamId);
-      return;
-    }
-    if (!stream.metadata.isPublic) {
-      console.error("Stream is not public:", message.streamId);
-      return;
-    }
+
+    const stream = validateStream(message.streamId);
+    if (!stream) return;
+
     const room = `chat:${message.streamId}`;
 
     switch (action) {
@@ -117,18 +134,49 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
       //   SocketState.untimeoutUser(message.userId, message.streamId);
       //   break;
       case ChatAction.BAN:
-        const success = await SocketState.banUser(message.userId, message.streamId, options);
+        // Sprawdź czy użytkownik już jest zbanowany
+        const bannedUsers = SocketState.getBannedUsers(message.streamId);
+        if (bannedUsers.includes(String(message.userId))) {
+          socket.emit("banUserStatus", {
+            message: `User ${message.userId} is already banned.`,
+            success: false
+          });
+          break;
+        }
+        
+        const banSuccess = await SocketState.banUser(message.userId, message.streamId, options);
         socket.emit("banUserStatus", {
-          message:
-            success
-              ? `User ${message.userId} has been banned successfully.`
-              : `Failed to ban user ${message.userId}.`
-          , success: success
+          message: banSuccess
+            ? `User ${message.userId} has been banned successfully.`
+            : `Failed to ban user ${message.userId}.`,
+          success: banSuccess
         });
+        if (banSuccess) {
+          notifyBannedUsersUpdate(message.streamId, room);
+        }
         break;
-      // case ChatAction.UNBAN:
-      //   SocketState.unbanUser(message.userId, message.streamId);
-      //   break;
+      case ChatAction.UNBAN:
+        // Sprawdź czy użytkownik rzeczywiście jest zbanowany
+        const currentBannedUsers = SocketState.getBannedUsers(message.streamId);
+        if (!currentBannedUsers.includes(String(message.userId))) {
+          socket.emit("unbanUserStatus", {
+            message: `User ${message.userId} is not banned.`,
+            success: false
+          });
+          break;
+        }
+        
+        const unbanSuccess = await SocketState.unbanUser(message.userId, message.streamId);
+        socket.emit("unbanUserStatus", {
+          message: unbanSuccess
+            ? `User ${message.userId} has been unbanned successfully.`
+            : `Failed to unban user ${message.userId}.`,
+          success: unbanSuccess
+        });
+        if (unbanSuccess) {
+          notifyBannedUsersUpdate(message.streamId, room);
+        }
+        break;
       default:
         console.error("Invalid action:", action);
         return;
