@@ -668,15 +668,12 @@ export const getRaportForStreamer = async (req: Request, res: Response) => {
     const raport = await sql`
         SELECT * from get_streaming_report_for_streamer(${streamerId})
     `;
-    if (raport.length === 0) {
-        res.status(StatusCodes.NOT_FOUND).json({
-            message: "No raport found for this streamer"
-        });
-        return;
-    }
+
+    const finalRaport = raport.length > 0 ? raport : null;
+
     res.status(StatusCodes.OK).json({
         message: ReasonPhrases.OK,
-        raport: raport
+        raport: finalRaport
     });
 }
 
