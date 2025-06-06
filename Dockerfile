@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 
 # Install dependencies
-RUN bun install
+RUN bun install --frozen-lockfile
 
 # Copy only Prisma files for generate step
 COPY prisma ./prisma
@@ -32,7 +32,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/bun.lock ./
 
 # Install only production dependencies
-RUN bun install --production
+RUN bun install --production  --frozen-lockfile
 
 COPY --from=builder /app/prisma ./prisma
 RUN bunx prisma generate
