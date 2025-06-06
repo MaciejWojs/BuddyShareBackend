@@ -14,8 +14,8 @@ router.get('/', authenticate, isAdmin, StreamersController.getAllStreamers);
 router.use("/:username", userExistsMiddleware, isStreamer);
 
 router.get('/:username', optionalAuthenticate, StreamersController.getStreamerByUsername);
-router.get('/:username/top-users-in-chat', StreamersController.getTopChatUsersForStreamer);
-router.get('/:username/streaming-raport', StreamersController.getRaportForStreamer);
+router.get('/:username/stats/top-users-in-chat', StreamersController.getTopChatUsersForStreamer);
+router.get('/:username/stats/streaming-raport', StreamersController.getRaportForStreamer);
 
 
 router.use('/:username/token', authenticate, userExistsMiddleware, checkUserResourceOwnership);

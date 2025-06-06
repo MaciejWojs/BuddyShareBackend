@@ -673,6 +673,6 @@ export const getRaportForStreamer = async (req: Request, res: Response) => {
     }
     res.status(StatusCodes.OK).json({
         message: ReasonPhrases.OK,
-        raport: raport[0]
+        raport: raport
     });
 }
