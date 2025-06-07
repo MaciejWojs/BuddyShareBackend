@@ -2,9 +2,8 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import * as EmailValidator from 'email-validator';
 import jwt from 'jsonwebtoken';
-import { StatusCodes, ReasonPhrases } from 'http-status-codes';
+import { StatusCodes } from 'http-status-codes';
 import { getPasswordHash } from '../utils/hash';
-import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
@@ -41,17 +40,17 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const email = EmailValidator.validate(username) ? username : null;
-    const loginField = email ? { email } : { username: username };
 
     try {
+        // Dla username używamy case insensitive wyszukiwania
         const prismaUser = await prisma.users.findFirst({
             where: {
-                userInfo: {
-                    ...loginField
-                },
                 userSettings: {
                     passwordHash: passwordHash
-                }
+                },
+                userInfo: email
+                    ? { email: { equals: username, mode: 'insensitive' as const } }
+                    : { username: { equals: username, mode: 'insensitive' as const } }
             },
             include: {
                 userInfo: true,
@@ -161,7 +160,7 @@ export const login = async (req: Request, res: Response) => {
  * - 409 Conflict if username or email already exists (with 'cause' field indicating which one)
  * - 500 Internal Server Error if hash generation fails or database operation throws an error
  */
- export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response) => {
     console.log("Registering user...");
     const { username, email, password }: { username: string, email: string, password: string } = req.body;
     // console.log("Username: " + username);
@@ -275,7 +274,7 @@ export const login = async (req: Request, res: Response) => {
  * 
  * @returns {Promise<void>} - Doesn't return a value, but sends a JSON response with user data
  */
- export const getMe = async (req: Request, res: Response) => {
+export const getMe = async (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json(req.user);
 };
 
@@ -287,7 +286,7 @@ export const login = async (req: Request, res: Response) => {
  * 
  * @returns {void} - Doesn't return a value, but clears the JWT cookie and sends a success response
  */
- export const logout = async (req: Request, res: Response) => {
+export const logout = async (req: Request, res: Response) => {
     const refreshToken = req.signedCookies['refresh_token'];
 
     // Unieważnij refresh token w bazie danych, jeśli istnieje
@@ -322,7 +321,7 @@ export const login = async (req: Request, res: Response) => {
  * 
  * @returns {void} - Doesn't return a value, but sends a JSON response with user data for testing
  */
- export const test = (req: Request, res: Response) => {
+export const test = (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json({
         success: true,
         message: 'Authentication test successful',
