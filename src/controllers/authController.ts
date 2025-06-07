@@ -4,6 +4,7 @@ import * as EmailValidator from 'email-validator';
 import jwt from 'jsonwebtoken';
 import { StatusCodes } from 'http-status-codes';
 import { getPasswordHash } from '../utils/hash';
+import zxcvbn from 'zxcvbn';
 
 const prisma = new PrismaClient();
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
@@ -166,15 +167,56 @@ export const login = async (req: Request, res: Response) => {
  */
 export const register = async (req: Request, res: Response) => {
     console.log("Registering user...");
-    const { username, email, password }: { username: string, email: string, password: string } = req.body;
+    let { username, email, password }: { username: string, email: string, password: string } = req.body;
     // console.log("Username: " + username);
     // console.log("Email: " + email);
     // console.log("Password " + password);
 
+    if (username) {
+        username = username.trim();
+    }
+
+    if (email) {
+        email = email.trim();
+    }
+
     if (!username || !email || !password) {
         res.status(StatusCodes.BAD_REQUEST).json({
             success: false,
+            cause: "missing_fields",
             message: 'Missing required fields: username, email, and password'
+        });
+        return;
+    }
+
+    if (password.toLowerCase().includes(username.toLowerCase())) {
+        console.log("Password contains username");
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            cause: "password_contains_username",
+            message: 'Password cannot contain the username'
+        });
+        return;
+    }
+
+    if (password.length < 14) {
+        console.log("Password is too short");
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            cause: "password_too_short",
+            message: 'Password must be at least 14 characters long'
+        });
+        return;
+    }
+
+    // Check password strength with zxcvbn
+    const passwordStrength = zxcvbn(password);
+    if (passwordStrength.score < 3) {
+        console.log("Password is too weak");
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            cause: "password_too_weak",
+            message: 'Password is too weak. ' + passwordStrength.feedback.suggestions.join(' ')
         });
         return;
     }
@@ -184,6 +226,7 @@ export const register = async (req: Request, res: Response) => {
         console.log("Invalid email");
         res.status(StatusCodes.BAD_REQUEST).json({
             success: false,
+            cause: "invalid_email",
             message: 'Invalid email format'
         });
         return;
