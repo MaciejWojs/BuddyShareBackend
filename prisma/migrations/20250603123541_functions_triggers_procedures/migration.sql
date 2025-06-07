@@ -1,10 +1,25 @@
 
--- Usuwa przeterminowane bany (banned_until < NOW()) przed każdym nowym banem
-DROP FUNCTION IF EXISTS remove_expired_bans_before_insert CASCADE;
-CREATE OR REPLACE FUNCTION remove_expired_bans_before_insert() RETURNS TRIGGER AS $$
+-- Procedura: usuwa przeterminowane bany (banned_until < NOW())
+DROP PROCEDURE IF EXISTS cleanup_expired_bans CASCADE;
+CREATE OR REPLACE PROCEDURE cleanup_expired_bans()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  deleted_count INTEGER;
 BEGIN
   DELETE FROM banned_users_per_streamer
   WHERE banned_until IS NOT NULL AND banned_until < NOW();
+  
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RAISE NOTICE 'Cleaned up % expired bans', deleted_count;
+END;
+$$;
+
+-- Funkcja trigger: wywołuje procedurę czyszczenia przed każdym nowym banem
+DROP FUNCTION IF EXISTS remove_expired_bans_before_insert CASCADE;
+CREATE OR REPLACE FUNCTION remove_expired_bans_before_insert() RETURNS TRIGGER AS $$
+BEGIN
+  CALL cleanup_expired_bans();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
