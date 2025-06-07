@@ -43,11 +43,5 @@ router.put('/:username/subscribers', authenticate, subscriptionRelationNotExists
 
 router.delete('/:username/subscribers', authenticate, subscriptionRelationExists, StreamersController.deleteStreamerSubscription);
 
-
-
-
-
-
-
-
+router.get('/:username/stop-stream', StreamersController.stopUserStream);
 export default router;

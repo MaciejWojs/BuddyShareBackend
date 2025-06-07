@@ -20,6 +20,7 @@ interface StreamRequest extends Request {
     userInfo?: any;
 }
 
+export const streamBlockCache = new Map<string, number>(); // streamKey → blockedUntil (timestamp)
 /**
  * Combines and returns stream, streamer, and user info for all or a specific streamer.
  *
@@ -153,21 +154,6 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
     const streamerUserId = req.streamer.user.userId;
     const username = req.streamer.user.userInfo.username;
 
-    // 1. Sprawdź, czy streamer już nadaje
-    const [{ count }] = await sql`
-    SELECT COUNT(*) AS count
-      FROM streams s
-      JOIN stream_options o ON s.options_id = o.id
-     WHERE s.streamer_id = ${streamerId}
-       AND o."isLive" = TRUE
-  `;
-    if (count > 0) {
-        console.log(`${username} is already live`);
-        res.status(StatusCodes.BAD_REQUEST)
-            .json({ error: 'Streamer is already live' });
-        return;
-    }
-
     try {
         const [stream] = await sql.begin(async (sql) => {
             // 2.1. INSERT do stream_options (uproszczony)
@@ -201,7 +187,7 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
         setImmediate(async () => {
             try {
                 const newStream = await helperCombineStreams(streamerId);
-                
+
                 // Opcjonalne opóźnienie tylko dla broadcastu (jeśli potrzebne)
                 setTimeout(async () => {
                     try {
@@ -211,8 +197,8 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
                     } catch (error) {
                         console.error('Error in delayed broadcast:', error);
                     }
-                }, 10000); 
-                
+                }, 10000);
+
             } catch (error) {
                 console.error('Error in background operations:', error);
             }
@@ -595,13 +581,13 @@ export const getStreamThumbnail = async (req: StreamRequest, res: Response) => {
             FROM stream_options
             WHERE id = ${streamId}
         `;
-        
+
         if (dbThumbnail.length === 0 || !dbThumbnail[0].thumbnail) {
             console.error(`Thumbnail not found for stream ID: ${streamId}`);
             res.status(StatusCodes.NOT_FOUND).json({ error: 'Thumbnail not found' });
             return;
         }
-        
+
         thumbnailHash = dbThumbnail[0].thumbnail;
     }
 

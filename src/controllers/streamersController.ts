@@ -6,6 +6,8 @@ import axios from 'axios';
 import { transformStreamsData } from '../utils/streams';
 import { SocketState } from '../socket/state';
 import { generateToken } from '../utils/generateToken';
+import { broadcastStreamEnd } from '../socket';
+import { streamBlockCache } from './streamController';
 
 const prisma = new PrismaClient();
 
@@ -699,6 +701,112 @@ const getStreamerModeratorsCountHelper = async (streamerId: number) => {
     return moderatorsCount.count;
 }
 
+/**
+ * Helper function to stop a live stream for a streamer
+ * 
+ * @param streamerId - ID of the streamer
+ * @param streamerName - Name of the streamer
+ * @returns Object with success status and stream information or error message
+ */
+export const stopStreamHelper = async (streamerId: number, streamerName: string) => {
+    try {
+        const result = await sql.begin(async (tx) => {
+            // Znajdź i zaktualizuj stream w jednej operacji
+            const updatedStream = await tx`
+                UPDATE stream_options 
+                SET "isLive" = FALSE, updated_at = NOW()
+                FROM streams s
+                WHERE stream_options.id = s.options_id
+                    AND s.streamer_id = ${streamerId}
+                    AND stream_options."isLive" = TRUE
+                    AND stream_options."isDeleted" = FALSE
+                RETURNING stream_options.*, s.id as stream_id, s.streamer_id
+            `;
+
+            return updatedStream;
+        });
+
+        if (result.length === 0) {
+            return {
+                success: false,
+                error: "No live stream found",
+                statusCode: StatusCodes.NOT_FOUND
+            };
+        }
+
+        const streamId = result[0].stream_id;
+        const streamOptions = result[0];
+
+        // Broadcast stream end
+        await broadcastStreamEnd({
+            streamId: streamId,
+            streamerId: streamerId,
+            streamerName
+        });
+
+        // Update socket state
+        SocketState.endStream(String(streamId));
+
+        return {
+            success: true,
+            data: {
+                streamId,
+                streamerId,
+                stoppedAt: streamOptions.updated_at
+            }
+        };
+
+    } catch (error) {
+        console.error('Error in stopStreamHelper:', error);
+        return {
+            success: false,
+            error: "Internal server error",
+            statusCode: StatusCodes.INTERNAL_SERVER_ERROR
+        };
+    }
+};
+
+/**
+ * Helper function to get streamer token and terminate RTMP connection
+ * 
+ * @param streamerId - ID of the streamer
+ * @returns Object with success status and token or error
+ */
+export const terminateRTMPConnectionHelper = async (streamerId: number) => {
+    try {
+        const [tokenResult] = await sql`
+            SELECT access_token as token 
+            FROM streamers 
+            WHERE id = ${streamerId}
+        `;
+
+        if (!tokenResult?.token) {
+            return {
+                success: false,
+                error: "Streamer token not found"
+            };
+        }
+
+        const host = process.env.STREAM_HOST || "http://nginx:8080/api";
+
+        // Terminate RTMP connection (fire and forget)
+        axios.get(`${host}/control/drop/publisher?app=live&name=${tokenResult.token}`)
+            .catch(err => console.warn('Failed to terminate RTMP connection:', err));
+
+        return {
+            success: true,
+            token: tokenResult.token
+        };
+
+    } catch (error) {
+        console.error('Error in terminateRTMPConnectionHelper:', error);
+        return {
+            success: false,
+            error: "Failed to get streamer token"
+        };
+    }
+};
+
 export const getAverageStreamDurationForStreamer = async (req: Request, res: Response) => {
     console.log("Getting average stream duration for streamer", req.userInfo.username);
     const streamerId = req.streamer?.streamerId;
@@ -761,6 +869,54 @@ export const getAllStatsForStreamer = async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.error('Error fetching all stats for streamer:', error);
+        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+    }
+}
+
+export const stopUserStream = async (req: Request, res: Response) => {
+    console.log("Stopping user stream for", req.userInfo.username);
+    const streamer = req.streamer;
+
+    if (!streamer) {
+        res.status(StatusCodes.BAD_REQUEST).json({ message: ReasonPhrases.BAD_REQUEST });
+        return;
+    }
+
+    try {
+        const streamerName = String(req.streamer.user.userInfo.username);
+
+        // Stop the stream using helper function
+        const stopResult = await stopStreamHelper(streamer.streamerId, streamerName);
+
+        if (!stopResult.success) {
+            res.status(stopResult.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
+                .json({ message: stopResult.error });
+            return;
+        }
+
+        // Terminate RTMP connection
+        const rtmpResult = await terminateRTMPConnectionHelper(streamer.streamerId);
+        if (!rtmpResult.success) {
+            console.warn('Failed to terminate RTMP connection:', rtmpResult.error);
+        }
+
+        res.status(StatusCodes.OK).json({
+            message: ReasonPhrases.OK,
+            stoppedStream: stopResult.data
+        });
+
+        
+        const [tokenResult] = await sql`
+            SELECT access_token as token 
+            FROM streamers 
+            WHERE id = ${streamer.streamerId}
+        `;
+
+        const block_until = req.body?.block_until || new Date(Date.now() + 5 * 60 * 1000);
+        streamBlockCache.set(tokenResult.token, block_until)
+
+    } catch (error) {
+        console.error('Error stopping user stream:', error);
         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
     }
 }

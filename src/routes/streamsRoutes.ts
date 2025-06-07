@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate, isAdmin, checkUserResourceOwnership } from '../middleware/authenticate';
-import { isStreamer } from '../middleware/isStreamer';
+import { isNotAlreadyStreaming, IsNotBanned, isStreamer } from '../middleware/isStreamer';
 import * as Streams from '../controllers/streamController';
 import { hasStreamerToken, isValidStreamerToken } from '../middleware/isStreamer';
 import { resolveStreamerTokenCache } from '../middleware/cache';
@@ -21,7 +21,7 @@ router.get('/', Streams.getAllStreams);
 
 router.use('/notify', hasStreamerToken, isValidStreamerToken);
 
-router.get('/notify/start', Streams.notifyStreamStart);
+router.get('/notify/start', isNotAlreadyStreaming, IsNotBanned, Streams.notifyStreamStart);
 router.get('/notify/end', Streams.notifyStreamEnd);
 router.get('/token', cors(corsOptions), resolveStreamerTokenCache, Streams.resolveStreamerToken);
 

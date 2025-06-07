@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { ReasonPhrases, StatusCodes } from 'http-status-codes';
 import { PrismaClient } from '@prisma/client';
+import { streamBlockCache } from '../controllers/streamController';
+import { sql } from 'bun';
 
 declare global {
     namespace Express {
@@ -197,4 +199,67 @@ export const attachStreamerIfExists = async (req: Request, res: Response, next: 
         req.streamer = null;
         next();
     }
+}
+
+export const IsNotBanned = async (req: Request, res: Response, next: NextFunction) => {
+    console.log("IsNotTemporaryBanned middleware is being executed");
+    const streamKey = req.token || req.query["name"];
+    const blockedUntil = streamBlockCache.get(streamKey as string);
+
+    const streamerUserId = req.streamer.user.userId;
+    const isBanned = await sql`SELECT "isBanned" FROM "users_info" WHERE "id" = ${streamerUserId};`
+
+    if (isBanned[0].isBanned) {
+        console.log(`🚫 Streamer with userId ${streamerUserId} is banned`);
+        res.status(403).send('Streamer is banned');
+        return;
+    }
+
+    if (blockedUntil && Date.now() < blockedUntil) {
+        console.log(`🚫 Stream "${streamKey}" zablokowany do ${new Date(blockedUntil).toISOString()}`);
+        res.status(403).send('Stream blocked');
+        return
+    } else {
+        for (const [key, value] of streamBlockCache.entries()) {
+            if (value < Date.now()) {
+                console.log(`Removing expired block for stream "${key}"`);
+                streamBlockCache.delete(key);
+            }
+        }
+    }
+    next();
+}
+
+/**
+ * Middleware that checks if a streamer is already live
+ *
+ * This middleware checks if the streamer is already live by querying the database.
+ * If the streamer is live, it sends a 400 Bad Request response.
+ * If the streamer is not live, it calls the next middleware.
+ *
+ * @param {Request} req - Express request object with streamer information
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>} - Asynchronous function that calls next() if streamer is not live
+ *
+ * @throws {StatusCodes.BAD_REQUEST} - If streamer is already live
+ */
+export const isNotAlreadyStreaming = async (req: Request, res: Response, next: NextFunction) => {
+    const streamerId = req.streamer.streamerId;
+    const username = req.streamer.user.userInfo.username;
+
+    const [{ count }] = await sql`
+        SELECT COUNT(*) AS count
+          FROM streams s
+          JOIN stream_options o ON s.options_id = o.id
+         WHERE s.streamer_id = ${streamerId}
+           AND o."isLive" = TRUE
+      `;
+    if (count > 0) {
+        console.log(`${username} is already live`);
+        res.status(StatusCodes.BAD_REQUEST)
+            .json({ error: 'Streamer is already live' });
+        return;
+    }
+    next();
 }
