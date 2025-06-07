@@ -30,7 +30,12 @@ if (!JWT_ACCESS_SECRET || !JWT_REFRESH_SECRET) {
  */
 export const login = async (req: Request, res: Response) => {
     console.log("Logging in user...");
-    const { username, passwordHash } = req.body;
+    let { username, passwordHash } = req.body;
+
+    if (username) {
+        username = username.trim();
+    }
+
     if (!username || !passwordHash) {
         res.status(StatusCodes.BAD_REQUEST).json({
             success: false,
@@ -38,7 +43,6 @@ export const login = async (req: Request, res: Response) => {
         });
         return;
     }
-
     const email = EmailValidator.validate(username) ? username : null;
 
     try {
