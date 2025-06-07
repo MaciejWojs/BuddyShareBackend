@@ -69,6 +69,13 @@ export const handleAuthEvents = (socket: Socket, io: Server) => {
       return;
     }
 
+    const stream = await SocketState.getStreamInfo(data.streamId);
+    if (stream && !stream.metadata.isPublic) {
+      console.error("Stream is not public:", data.streamId);
+      socket.emit("chatMessageError", { message: "This stream is not public." });
+      return;
+    }
+
     // Zapisz wiadomość do bazy i do state
     try {
       const success = await SocketState.addChatMessage(streamIdNum, userId, data.message);
