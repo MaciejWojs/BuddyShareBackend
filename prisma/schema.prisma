@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
@@ -77,6 +78,15 @@ model RefreshToken {
   user Users @relation(fields: [userId], references: [userId])
 
   @@map("refresh_tokens")
+}
+
+model InvalidatedRefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    Int      @map("user_id")
+  invalidatedAt DateTime @default(now()) @map("invalidated_at")
+
+  @@map("invalidated_refresh_tokens")
 }
 
 // model UserRoles {
@@ -225,14 +235,14 @@ model StreamsTags {
 }
 
 model BannedUsersPerStreamer {
-  bannedUserId Int @id @default(autoincrement()) @map("id")
-  streamerId   Int @map("streamer_id")
-  userId       Int @map("user_id")
-  reason       String @default("Unknown reason")
-  bannedBy     Int @map("banned_by") 
-  bannedSince DateTime @default(now()) @map("banned_since")
-  bannedUntil DateTime? @map("banned_until")
-  isPermanent Boolean  @default(true) @map("is_permanent")
+  bannedUserId Int       @id @default(autoincrement()) @map("id")
+  streamerId   Int       @map("streamer_id")
+  userId       Int       @map("user_id")
+  reason       String    @default("Unknown reason")
+  bannedBy     Int       @map("banned_by")
+  bannedSince  DateTime  @default(now()) @map("banned_since")
+  bannedUntil  DateTime? @map("banned_until")
+  isPermanent  Boolean   @default(true) @map("is_permanent")
 
   streamer Streamers @relation(fields: [streamerId], references: [streamerId])
   user     Users     @relation(fields: [userId], references: [userId])

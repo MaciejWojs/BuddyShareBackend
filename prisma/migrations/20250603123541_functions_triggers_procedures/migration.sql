@@ -1,5 +1,6 @@
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
--- Procedura: usuwa przeterminowane bany (banned_until < NOW())
+-- Procedura: usuwa przeterminowane bany (banned_until < CURRENT_TIMESTAMP)
 DROP PROCEDURE IF EXISTS cleanup_expired_bans CASCADE;
 CREATE OR REPLACE PROCEDURE cleanup_expired_bans()
 LANGUAGE plpgsql
@@ -8,7 +9,7 @@ DECLARE
   deleted_count INTEGER;
 BEGIN
   DELETE FROM banned_users_per_streamer
-  WHERE banned_until IS NOT NULL AND banned_until < NOW();
+  WHERE banned_until IS NOT NULL AND banned_until < CURRENT_TIMESTAMP;
   
   GET DIAGNOSTICS deleted_count = ROW_COUNT;
   RAISE NOTICE 'Cleaned up % expired bans', deleted_count;
@@ -30,6 +31,92 @@ CREATE TRIGGER trg_remove_expired_bans_before_insert
 BEFORE INSERT ON banned_users_per_streamer
 FOR EACH ROW
 EXECUTE FUNCTION remove_expired_bans_before_insert();
+
+-- Procedura: waliduje czy banned_until nie jest w przeszłości
+DROP PROCEDURE IF EXISTS validate_ban_date_procedure CASCADE;
+CREATE OR REPLACE PROCEDURE validate_ban_date_procedure(p_banned_until TIMESTAMP)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Sprawdź czy banned_until jest ustawione i czy nie jest w przeszłości
+  IF p_banned_until IS NOT NULL AND p_banned_until < CURRENT_TIMESTAMP THEN
+    RAISE EXCEPTION 'Nie można ustawić daty zakończenia bana w przeszłości. Data: %, Obecny czas: %', 
+      p_banned_until, CURRENT_TIMESTAMP
+      USING ERRCODE = 'check_violation';
+  END IF;
+END;
+$$;
+
+-- Funkcja trigger: wywołuje procedurę walidacji daty bana
+DROP FUNCTION IF EXISTS validate_ban_date CASCADE;
+CREATE OR REPLACE FUNCTION validate_ban_date() RETURNS TRIGGER AS $$
+BEGIN
+  CALL validate_ban_date_procedure(NEW.banned_until);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger: waliduje datę bana przed INSERT i UPDATE
+DROP TRIGGER IF EXISTS trg_validate_ban_date ON banned_users_per_streamer;
+CREATE TRIGGER trg_validate_ban_date
+  BEFORE INSERT OR UPDATE ON banned_users_per_streamer
+  FOR EACH ROW
+  EXECUTE FUNCTION validate_ban_date();
+
+-- 1. Trigger walidujący datę - nie pozwala na wstawienie tokenu z expires_at w przeszłości
+DROP FUNCTION IF EXISTS validate_token_date CASCADE;
+CREATE OR REPLACE FUNCTION validate_token_date() RETURNS TRIGGER AS $$
+BEGIN
+  -- Sprawdź czy nowy token nie ma daty w przeszłości (z małym marginesem na opóźnienia)
+  IF NEW.expires_at < (CURRENT_TIMESTAMP - INTERVAL '5 seconds') THEN
+    RAISE EXCEPTION 'Token nie może mieć daty wygaśnięcia w przeszłości. Podana data: %, Obecny czas: %', 
+      NEW.expires_at, CURRENT_TIMESTAMP
+      USING ERRCODE = 'check_violation';
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger dla walidacji daty
+DROP TRIGGER IF EXISTS trg_validate_token_date ON refresh_tokens;
+CREATE TRIGGER trg_validate_token_date
+  BEFORE INSERT OR UPDATE ON refresh_tokens
+  FOR EACH ROW
+  EXECUTE FUNCTION validate_token_date();
+
+-- 2. Trigger przenoszący wygasłe tokeny do invalidated_refresh_tokens
+DROP FUNCTION IF EXISTS cleanup_expired_tokens CASCADE;
+CREATE OR REPLACE FUNCTION cleanup_expired_tokens() RETURNS TRIGGER AS $$
+DECLARE
+  moved_count INTEGER;
+BEGIN
+  -- Przenieś wygasłe tokeny do tabeli invalidated_refresh_tokens
+  WITH expired_tokens AS (
+    DELETE FROM refresh_tokens
+    WHERE expires_at < CURRENT_TIMESTAMP
+    RETURNING id, token, user_id
+  )
+  INSERT INTO invalidated_refresh_tokens (id, token, user_id, invalidated_at)
+  SELECT id, token, user_id, CURRENT_TIMESTAMP
+  FROM expired_tokens;
+  
+  GET DIAGNOSTICS moved_count = ROW_COUNT;
+  
+  IF moved_count > 0 THEN
+    RAISE NOTICE 'Przeniesiono % wygasłych tokenów do invalidated_refresh_tokens', moved_count;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger dla czyszczenia wygasłych tokenów (uruchamia się PRZED walidacją)
+DROP TRIGGER IF EXISTS trg_cleanup_expired_tokens ON refresh_tokens;
+CREATE TRIGGER trg_cleanup_expired_tokens
+  BEFORE INSERT ON refresh_tokens
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION cleanup_expired_tokens();
 
 -- Funkcja: zwraca x najbardziej aktywnych użytkowników czatu danego streama (tylko zakończone transmisje)
 DROP FUNCTION IF EXISTS get_top_chat_users_for_stream_id(INTEGER, INTEGER) CASCADE;
@@ -134,7 +221,7 @@ BEGIN
     FROM banned_users_per_streamer b
     JOIN streamers s ON s.id = b.streamer_id
     WHERE s.id = p_streamer_id
-      AND b.banned_until IS NULL OR b.banned_until > NOW()
+      AND b.banned_until IS NULL OR b.banned_until > CURRENT_TIMESTAMP
   );
 END;
 $$ LANGUAGE plpgsql;
@@ -160,12 +247,10 @@ CREATE OR REPLACE FUNCTION get_top_followed_streamers(p_limit INTEGER)
 RETURNS TABLE(streamer_id INTEGER, username TEXT, profile_picture TEXT, followers_count INTEGER) AS $$
 BEGIN
   RETURN QUERY
-    SELECT s.id AS streamer_id, ui.username, ui.profile_picture, COUNT(f.follower_user_id)::INTEGER AS followers_count
+    SELECT s.id AS streamer_id, ui.username, ui.profile_picture, get_followers_count_for_user(u.id) AS followers_count
     FROM streamers s
     JOIN users u ON u.id = s.user_id
     JOIN users_info ui ON ui.id = u.user_info_id
-    LEFT JOIN followers f ON f.followed_user_id = u.id
-    GROUP BY s.id, ui.username, ui.profile_picture
     ORDER BY followers_count DESC
     LIMIT p_limit;
 END;
@@ -177,13 +262,37 @@ CREATE OR REPLACE FUNCTION get_top_subscribed_streamers(p_limit INTEGER)
 RETURNS TABLE(streamer_id INTEGER, username TEXT, profile_picture TEXT, subscribers_count INTEGER) AS $$
 BEGIN
   RETURN QUERY
-    SELECT s.id AS streamer_id, ui.username, ui.profile_picture, COUNT(f.user_id)::INTEGER AS subscribers_count
+    SELECT s.id AS streamer_id, ui.username, ui.profile_picture, get_subscribers_count_for_streamer(s.id) AS subscribers_count
     FROM streamers s
     JOIN users u ON u.id = s.user_id
     JOIN users_info ui ON ui.id = u.user_info_id
-    LEFT JOIN subscribers f ON f.streamer_id = s.id
-    GROUP BY s.id, ui.username, ui.profile_picture
     ORDER BY subscribers_count DESC
     LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Funkcja: zwraca liczbę obserwujących danego użytkownika
+DROP FUNCTION IF EXISTS get_followers_count_for_user CASCADE;
+CREATE OR REPLACE FUNCTION get_followers_count_for_user(p_user_id INTEGER)
+RETURNS INTEGER AS $$
+BEGIN
+  RETURN (
+    SELECT COUNT(*)
+    FROM followers f
+    WHERE f.followed_user_id = p_user_id
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Funkcja: zwraca liczbę subskrybentów danego streamera
+DROP FUNCTION IF EXISTS get_subscribers_count_for_streamer CASCADE;
+CREATE OR REPLACE FUNCTION get_subscribers_count_for_streamer(p_streamer_id INTEGER)
+RETURNS INTEGER AS $$
+BEGIN
+  RETURN (
+    SELECT COUNT(*)
+    FROM subscribers s
+    WHERE s.streamer_id = p_streamer_id
+  );
 END;
 $$ LANGUAGE plpgsql;
