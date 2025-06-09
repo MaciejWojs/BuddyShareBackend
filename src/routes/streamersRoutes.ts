@@ -10,9 +10,17 @@ const router = Router({ mergeParams: true }); // Dodaj mergeParams: true
 
 router.get('/', authenticate, isAdmin, StreamersController.getAllStreamers);
 
+
 router.use("/:username", userExistsMiddleware, isStreamer);
 
 router.get('/:username', optionalAuthenticate, StreamersController.getStreamerByUsername);
+router.get('/:username/stats', StreamersController.getAllStatsForStreamer);
+router.get('/:username/stats/top-users-in-chat', StreamersController.getTopChatUsersForStreamer);
+router.get('/:username/stats/streaming-raport', StreamersController.getRaportForStreamer);
+router.get('/:username/stats/avarage-streaming-time', StreamersController.getAverageStreamDurationForStreamer);
+router.get('/:username/stats/baned-users-count', StreamersController.getBannedUsersForStreamer);
+router.get('/:username/stats/moderators-count', StreamersController.getStreamerModeratorsCount);
+
 
 router.use('/:username/token', authenticate, userExistsMiddleware, checkUserResourceOwnership);
 
@@ -35,11 +43,5 @@ router.put('/:username/subscribers', authenticate, subscriptionRelationNotExists
 
 router.delete('/:username/subscribers', authenticate, subscriptionRelationExists, StreamersController.deleteStreamerSubscription);
 
-
-
-
-
-
-
-
+router.get('/:username/stop-stream', StreamersController.stopUserStream);
 export default router;

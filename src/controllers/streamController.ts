@@ -1,8 +1,12 @@
 import { Request, Response } from 'express';
 import { StatusCodes, ReasonPhrases } from 'http-status-codes';
-import { sql } from 'bun';
+import { file, sql } from 'bun';
 import { notifyStreamerSubscribers, broadcastPatchStream, broadcastStreamEnd, notifyStreamer, broadcastStream } from '../socket';
 import { tokenCache } from '../middleware/cache';
+import { FileRequest, ImageTypes } from '../middleware/mediaMiddlewares';
+import { SocketState } from '../socket/state';
+import { findImage } from '../utils/findImage';
+import path from 'path';
 
 interface StreamData {
     access_token: any;
@@ -16,6 +20,24 @@ interface StreamRequest extends Request {
     userInfo?: any;
 }
 
+export const streamBlockCache = new Map<string, number>(); // streamKey → blockedUntil (timestamp)
+/**
+ * Combines and returns stream, streamer, and user info for all or a specific streamer.
+ *
+ * @async
+ * @function helperCombineStreams
+ * @param {number | null} [streamerId=null] - Optional streamer ID to filter streams
+ * @returns {Promise<StreamData[]>} - Returns an array of stream data objects without access tokens or emails
+ *
+ * @example
+ * // helperCombineStreams()
+ * // Returns: [ ...stream data ]
+ *
+ * // helperCombineStreams(123)
+ * // Returns: [ ...stream data for streamer 123 ]
+ *
+ * @throws Will log and return an empty array if there is an error fetching streams
+ */
 const helperCombineStreams = async (streamerId: number | null = null) => {
     const host = process.env.STREAM_HOST_VIDEO || "http://localhost";
     try {
@@ -83,6 +105,23 @@ const helperCombineStreams = async (streamerId: number | null = null) => {
     return [];
 }
 
+/**
+ * Retrieves all streams, combining stream, streamer, and user info.
+ *
+ * @async
+ * @function getAllStreams
+ * @param {Request} _req - Express request object (unused)
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns a JSON array of streams or an error message
+ *
+ * @example
+ * // GET /api/streams
+ * // Success response: [ ...streams ]
+ * // Error response:
+ * // {
+ * //   error: 'Internal Server Error'
+ * // }
+ */
 export const getAllStreams = async (_req: Request, res: Response) => {
     try {
         const combinedStreams = await helperCombineStreams();
@@ -94,27 +133,26 @@ export const getAllStreams = async (_req: Request, res: Response) => {
 };
 
 // * Verifies streamer token in OBS
+/**
+ * Notifies the system that a stream has started (OBS token verification).
+ *
+ * @async
+ * @function notifyStreamStart
+ * @param {Request} req - Express request object containing streamer info
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns status or error
+ *
+ * @example
+ * // POST /api/streams/start
+ * // Success: 200 OK
+ * // Error: 400 Bad Request or 500 Internal Server Error
+ */
 export const notifyStreamStart = async (req: Request, res: Response) => {
     console.log('notifyStreamStart endpoint hit');
 
     const streamerId = req.streamer.streamerId;
     const streamerUserId = req.streamer.user.userId;
     const username = req.streamer.user.userInfo.username;
-
-    // 1. Sprawdź, czy streamer już nadaje
-    const [{ count }] = await sql`
-    SELECT COUNT(*) AS count
-      FROM streams s
-      JOIN stream_options o ON s.options_id = o.id
-     WHERE s.streamer_id = ${streamerId}
-       AND o."isLive" = TRUE
-  `;
-    if (count > 0) {
-        console.log(`${username} is already live`);
-        res.status(StatusCodes.BAD_REQUEST)
-            .json({ error: 'Streamer is already live' });
-        return;
-    }
 
     try {
         const [stream] = await sql.begin(async (sql) => {
@@ -137,29 +175,59 @@ export const notifyStreamStart = async (req: Request, res: Response) => {
               VALUES (${streamerId}, ${opts.id})
               RETURNING id
           `;
-            res.sendStatus(StatusCodes.OK);
 
             return [stream];
         });
 
+        // NATYCHMIAST wyślij odpowiedź do OBS
+        res.sendStatus(StatusCodes.OK);
+        console.log(`${username} started streaming ▶️ - Response sent to OBS`);
 
-        const newStream = await helperCombineStreams(streamerId);
+        // Wykonaj wszystkie operacje w tle asynchronicznie
+        setImmediate(async () => {
+            try {
+                const newStream = await helperCombineStreams(streamerId);
 
-        await broadcastStream(newStream[0]);
+                // Opcjonalne opóźnienie tylko dla broadcastu (jeśli potrzebne)
+                setTimeout(async () => {
+                    try {
+                        await broadcastStream(newStream[0]);
+                        notifyStreamer(stream.id, streamerUserId, username);
+                        console.log(`Broadcast completed for ${username}`);
+                    } catch (error) {
+                        console.error('Error in delayed broadcast:', error);
+                    }
+                }, 10000);
 
-        notifyStreamer(stream.id, streamerUserId, username);
+            } catch (error) {
+                console.error('Error in background operations:', error);
+            }
+        });
 
-        console.log(`${username} started streaming ▶️`);
-        return
+        return;
     } catch (error) {
         console.error('Transaction error:', error);
         res
             .status(StatusCodes.INTERNAL_SERVER_ERROR)
             .json({ error: 'Internal server error' });
-        return
+        return;
     }
 }
 
+/**
+ * Notifies the system that a stream has ended.
+ *
+ * @async
+ * @function notifyStreamEnd
+ * @param {Request} req - Express request object containing streamer info
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns status or error
+ *
+ * @example
+ * // POST /api/streams/end
+ * // Success: 200 OK
+ * // Error: 400 Bad Request or 500 Internal Server Error
+ */
 export const notifyStreamEnd = async (req: Request, res: Response) => {
     console.log('notifyStreamEnd endpoint hit');
     const streamerId = req.streamer.streamerId;
@@ -198,6 +266,18 @@ export const notifyStreamEnd = async (req: Request, res: Response) => {
     return;
 }
 
+/**
+ * Gets the count of live streams for a given streamer.
+ *
+ * @async
+ * @function getStreamerStreamsCount
+ * @param {number} streamerId - The ID of the streamer
+ * @returns {Promise<number>} - Returns the count of live streams
+ *
+ * @example
+ * // getStreamerStreamsCount(123)
+ * // Returns: 1
+ */
 const getStreamerStreamsCount = async (streamerId: number) => {
     const query = await sql`SELECT COUNT(*) cnt
     FROM streams s 
@@ -207,6 +287,23 @@ const getStreamerStreamsCount = async (streamerId: number) => {
     return query[0].cnt;
 }
 
+/**
+ * Retrieves a specific stream for a streamer by stream ID.
+ *
+ * @async
+ * @function getStream
+ * @param {Request} req - Express request object containing userInfo, streamer, and stream ID in params
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns the stream data or an error message
+ *
+ * @example
+ * // GET /api/streams/:id
+ * // Success response: { ...stream data }
+ * // Error response:
+ * // {
+ * //   error: 'Stream ID is required' | 'Stream not found'
+ * // }
+ */
 export const getStream = async (req: Request, res: Response) => {
     console.log('getStream endpoint hit for user:', req.userInfo.username);
     const streamerId = req.streamer.streamerId;
@@ -235,6 +332,24 @@ export const getStream = async (req: Request, res: Response) => {
 
 }
 
+/**
+ * Updates a stream's title, description, visibility, and thumbnail.
+ *
+ * @async
+ * @function patchStream
+ * @param {Request} req - Express request object containing userInfo, streamer, stream ID in params, and update data in body
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns the updated stream or an error message
+ *
+ * @example
+ * // PATCH /api/streams/:id
+ * // Body: { title, description, isPublic, thumbnail }
+ * // Success response: { ...updated stream data }
+ * // Error response:
+ * // {
+ * //   error: 'Stream ID is required' | 'Stream not found' | 'Internal server error'
+ * // }
+ */
 export const patchStream = async (req: Request, res: Response) => {
     const streamerUsername = req.userInfo.username;
     console.log('patchStream endpoint hit for user:', streamerUsername);
@@ -253,6 +368,20 @@ export const patchStream = async (req: Request, res: Response) => {
     const streamDescription = req.body.description;
     const streamIsPublic = req.body.isPublic;
 
+    const file = req.file as Express.Multer.File | undefined;
+    const fileHashes = (req as FileRequest).fileHashes;
+
+    console.log(`Files: ${file}`);
+    console.log(`File hashes: ${fileHashes}`);
+    console.log(`fileHashes length: ${fileHashes ? fileHashes.length : 0}`);
+
+    let thumbnail = null;
+    if (file && fileHashes && fileHashes[0] && fileHashes.length === 1) {
+        thumbnail = fileHashes[0];
+        console.log(`Thumbnail file hash: ${thumbnail}`);
+    }
+
+    console.log(`has thumbnail: ${thumbnail}`);
 
     const stream = await sql`
     UPDATE stream_options
@@ -260,7 +389,7 @@ export const patchStream = async (req: Request, res: Response) => {
         description = ${streamDescription},
         "isPublic" = ${streamIsPublic},
         updated_at = DEFAULT,
-        thumbnail = ${req.body.thumbnail || null} 
+        thumbnail = ${thumbnail} 
     WHERE id = ${streamOptionId}
     RETURNING *;
 `
@@ -330,6 +459,26 @@ export const patchStream = async (req: Request, res: Response) => {
 
 }
 
+/**
+ * Soft deletes a stream by setting its isDeleted flag to true.
+ *
+ * @async
+ * @function softDeleteStream
+ * @param {Request} req - Express request object containing userInfo, streamer, and stream option ID in params
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Returns the updated stream or an error message
+ *
+ * @example
+ * // PATCH /api/streams/:id/soft-delete
+ * // Success response:
+ * // {
+ * //   ...updated stream data
+ * // }
+ * // Error response:
+ * // {
+ * //   error: 'Stream ID is required' | 'Stream not found'
+ * // }
+ */
 export const softDeleteStream = async (req: Request, res: Response) => {
     console.log('softDeleteStream endpoint hit for user:', req.userInfo.username);
     const streamerId = req.streamer.streamerId;
@@ -359,6 +508,20 @@ export const softDeleteStream = async (req: Request, res: Response) => {
 }
 
 
+/**
+ * Resolves and returns the streamer's access token for a given stream ID.
+ *
+ * @async
+ * @function resolveStreamerToken
+ * @param {StreamRequest} req - Express request object containing streamId
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>} - Sets the token header and returns status or error
+ *
+ * @example
+ * // GET /api/streams/:id/resolve-token
+ * // Success: sets Token header and returns 200 OK
+ * // Error: 404 Not Found or 500 Internal Server Error
+ */
 export const resolveStreamerToken = async (req: StreamRequest, res: Response) => {
     console.log('resolveStreamerToken endpoint hit');
 
@@ -394,4 +557,55 @@ export const resolveStreamerToken = async (req: StreamRequest, res: Response) =>
         res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR);
         return;
     }
+}
+
+export const getStreamThumbnail = async (req: StreamRequest, res: Response) => {
+    let streamId: number | null = null;
+    try {
+        streamId = parseInt(req.params.id);
+    } catch (error) {
+        console.error('Invalid stream ID:', req.params.id);
+        res.status(StatusCodes.BAD_REQUEST).json({ error: 'Invalid stream ID' });
+        return;
+    }
+
+    if (!streamId) {
+        res.status(StatusCodes.BAD_REQUEST).json({ error: 'Stream ID is required' });
+        return;
+    }
+
+    let thumbnailHash = SocketState.getStreamThumbnail(req.streamId!);
+    if (!thumbnailHash) {
+        const dbThumbnail = await sql`
+            SELECT thumbnail
+            FROM stream_options
+            WHERE id = ${streamId}
+        `;
+
+        if (dbThumbnail.length === 0 || !dbThumbnail[0].thumbnail) {
+            console.error(`Thumbnail not found for stream ID: ${streamId}`);
+            res.status(StatusCodes.NOT_FOUND).json({ error: 'Thumbnail not found' });
+            return;
+        }
+
+        thumbnailHash = dbThumbnail[0].thumbnail;
+    }
+
+    const thumbnailFile = await findImage(ImageTypes.THUMBNAIL, thumbnailHash!);
+
+    if (!thumbnailFile) {
+        console.error(`Thumbnail not found for stream ID: ${streamId}`);
+        res.status(StatusCodes.NOT_FOUND).json({ error: 'Thumbnail not found' });
+        return;
+    }
+
+    const ext = path.extname(thumbnailFile.name!).toLowerCase();
+    let mime = 'application/octet-stream';
+    if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
+    if (ext === '.png') mime = 'image/png';
+    if (ext === '.webp') mime = 'image/webp';
+
+    res.setHeader('Content-Type', mime);
+    const arrayBuffer = await thumbnailFile.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
 }

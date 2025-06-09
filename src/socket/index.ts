@@ -127,22 +127,28 @@ export const broadcastPatchStream = (streamData: {
   stream_urls: {
     name: string;
     dash: string;
-  }[];
+  }[],
+  bannedUsers: string[];
+
 }) => {
   if (!io) {
     console.error('Socket.IO nie został zainicjalizowany');
     return false;
   }
+  const streamId = streamData.options_id.toString();
 
   // console.log('Broadcasting stream:', streamData.uris[0])
   SocketState.patchStream(
-    streamData.options_id.toString(),
+    streamId,
     streamData.title,
     streamData.stream_description,
     streamData.category_name || 'default',
     streamData.tags || null,
     streamData.isPublic,
     streamData.thumbnail ? streamData.thumbnail : null)
+
+  const bannedUsers = SocketState.getBannedUsers(streamId);
+  streamData.bannedUsers = Array.from(bannedUsers);
 
   io.of('/public').emit('patchStream', streamData);
 }
@@ -171,7 +177,8 @@ export const broadcastStream = async (streamData: {
   stream_urls: {
     name: string;
     dash: string;
-  }[];
+  }[],
+  bannedUsers: string[];
 }) => {
   if (!io) {
     console.error('Socket.IO nie został zainicjalizowany');
@@ -190,6 +197,9 @@ export const broadcastStream = async (streamData: {
     streamData.username,
     streamData.isPublic
   );
+
+  const bannedUsers = SocketState.getBannedUsers(streamId);
+  streamData.bannedUsers = Array.from(bannedUsers);
 
   io.of('/public').emit('streamStarted', streamData);
 }

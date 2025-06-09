@@ -6,7 +6,20 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-
+/**
+ * Middleware that checks if a subscription relation exists between the authenticated user and the streamer.
+ *
+ * @async
+ * @function subscriptionRelationExists
+ * @param {Request} req - Express request object containing streamer and user info
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>} - Calls next() if relation exists, otherwise sends 404 response
+ *
+ * @example
+ * // Usage in a route:
+ * router.delete('/subscriptions/:streamerId', subscriptionRelationExists, unsubscribeController);
+ */
 export const subscriptionRelationExists = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const streamerID = req.streamer?.streamerId;
@@ -54,6 +67,20 @@ export const subscriptionRelationExists = async (req: Request, res: Response, ne
 
 }
 
+/**
+ * Middleware that checks if a subscription relation does NOT exist between the authenticated user and the streamer.
+ *
+ * @async
+ * @function subscriptionRelationNotExists
+ * @param {Request} req - Express request object containing streamer and user info
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>} - Calls next() if relation does not exist, otherwise sends 400 response
+ *
+ * @example
+ * // Usage in a route:
+ * router.post('/subscriptions/:streamerId', subscriptionRelationNotExists, subscribeController);
+ */
 export const subscriptionRelationNotExists = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const streamerID = req.streamer?.streamerId;

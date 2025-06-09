@@ -305,6 +305,20 @@ export const tokenRefresher = async (req: Request, res: Response, next: NextFunc
     }
 };
 
+/**
+ * Socket.IO middleware for authenticating users using JWT token.
+ * Extracts token from handshake auth or cookies, verifies it, and attaches user data to socket.
+ *
+ * @param {Socket} socket - The Socket.IO socket object
+ * @param {(err?: Error) => void} next - Callback to pass control to the next middleware
+ * @returns {void}
+ *
+ * @throws {Error} If authentication fails or JWT secret is missing
+ *
+ * @example
+ * // Usage in Socket.IO server:
+ * io.use(socketAuthMiddleware);
+ */
 export const socketAuthMiddleware = (socket: Socket, next: (err?: Error) => void) => {
     console.warn("Socket authentication middleware is being executed");
     const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;

@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:alpine
+    image: postgres:17.5-alpine3.22
     container_name: postgres-db
     restart: unless-stopped
     environment:
@@ -13,6 +13,12 @@ services:
       - backend
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c pg_stat_statements.max=10000
+      -c pg_stat_statements.track_utility=off
 
   app:
     image: buddy-share-back:latest
@@ -77,7 +83,7 @@ services:
       HOST: app
     ports:
       - "1935:1935"
-      - "8080:8080"
+      # - "8080:8080"
       - "80:80"
     networks:
       - backend

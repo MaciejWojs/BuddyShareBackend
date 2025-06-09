@@ -1,4 +1,5 @@
 import { sql } from 'bun';
+import { Role } from '@prisma/client'
 
 // Interfejs dla scentralizowanych informacji o streamie
 interface StreamInfo {
@@ -543,14 +544,26 @@ export class SocketState {
       return;
     }
 
+    const role = await sql`
+      SELECT "userRole" FROM users_info WHERE id =${userId}
+    `;
+
+    if (role && role[0] && role[0].userRole === Role.ADMIN) {
+      console.log(`User ${userId} is an admin, skipping ban.`);
+      return false; // Nie banować adminów
+    }
+
+
     // Zabezpieczenie: jeśli użytkownik już jest zbanowany w state, nie wykonuj ponownie bana
     const stream = this.streams.get(String(streamId));
     if (stream && stream.bannedUsers.has(String(userId))) {
+      console.log(`User ${userId} is already banned in stream ${streamId}`);
       return false;
     }
 
     try {
       await sql.begin(async (tx) => {
+        // Użyj UPSERT (INSERT ... ON CONFLICT) zamiast zwykłego INSERT
         await tx`
           INSERT INTO banned_users_per_streamer (user_id, streamer_id, reason, banned_by, banned_since, banned_until, is_permanent)
           VALUES (
@@ -562,6 +575,13 @@ export class SocketState {
             ${bannedUntil},
             ${isPermanent}
           )
+          ON CONFLICT (streamer_id, user_id) 
+          DO UPDATE SET 
+            reason = EXCLUDED.reason,
+            banned_by = EXCLUDED.banned_by,
+            banned_since = NOW(),
+            banned_until = EXCLUDED.banned_until,
+            is_permanent = EXCLUDED.is_permanent
         `;
       });
       // Dodaj użytkownika do listy zbanowanych w state
@@ -576,9 +596,54 @@ export class SocketState {
     return success;
   }
 
+  static async unbanUser(userId: number, streamId: number) {
+    let success = true;
+    try {
+
+      // Usuń użytkownika z listy zbanowanych w state tylko ze streamów należących do tego streamera
+      const stream = this.streams.get(String(streamId));
+      if (stream && stream.bannedUsers.has(String(userId))) {
+        stream.bannedUsers.delete(String(userId));
+        console.log(`Removed user ${userId} from banned list in stream state`);
+      }
+      const streamerId = this.getStreamerId(String(streamId));
+
+      await sql.begin(async (tx) => {
+        const result = await tx`
+          DELETE FROM banned_users_per_streamer
+          WHERE user_id = ${userId} AND streamer_id = ${streamerId}
+        `;
+        // Sprawdź czy rzeczywiście usunięto rekord
+        console.log(`Unban result for user ${userId}, streamer ${streamerId}:`, result);
+      });
+    }
+    catch (e) {
+      console.error('Error unbanning user:', e);
+      success = false;
+    }
+    return success;
+  }
+
   static getStreamerId(streamId: string): string | null {
     const stream = this.streams.get(streamId);
     if (!stream) return null;
     return stream.metadata.streamerId;
+  }
+
+  static getStreamThumbnail(streamId: string): string | null {
+    const stream = this.streams.get(streamId);
+    if (!stream) return null;
+    return stream.metadata.thumbnail || null;
+  }
+
+  static getBannedUsers(streamId: number | string): string[] {
+    if (typeof streamId === 'number') {
+      streamId = String(streamId);
+    }
+    const stream = this.streams.get(streamId);
+    if (!stream) return [];
+
+    // Zwróć listę ID zbanowanych użytkowników z state jako tablicę
+    return Array.from(stream.bannedUsers);
   }
 }

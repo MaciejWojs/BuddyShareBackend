@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import { setupSocketServer } from './socket';
 import { sql } from 'bun';
 import axios from 'axios';
+import nodeCron from 'node-cron';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
 
@@ -27,6 +28,13 @@ const handleShutdown = async () => {
     process.exit(0);
   }
 };
+
+nodeCron.schedule('0 0 * * *', async () => {
+  await Promise.all([
+    sql`call cleanup_expired_bans()`,
+    sql`call cleanup_expired_tokens()`,
+  ]);
+});
 
 // Obsługa sygnałów zamknięcia (Ctrl+C, zamykanie procesu, itp.)
 process.on('SIGINT', handleShutdown);
